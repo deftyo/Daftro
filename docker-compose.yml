@@ -1,0 +1,13 @@
+services:
+  daftro:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./reports:/reports
+    environment:
+      - REPORTS_DIR=/reports
+      - PORT=3000
+    restart: unless-stopped

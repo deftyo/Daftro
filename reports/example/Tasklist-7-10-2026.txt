@@ -1,0 +1,71 @@
+Date: 7/10/2026
+Planned Task List for today:
+
+Day plan:
+08:30-08:40 - Cowork, plan generation
+08:40-09:00 - Emails (morning check)
+09:00-11:00 - AB#197 - ship to production (MR pending on devserver; top priority)
+11:00-12:00 - ADO - Try and finish this
+12:00-12:30 - Lunch (PROTECT)
+12:30-12:45 - Emails (after-lunch check)
+12:45-14:00 - [OPEN] - to plan
+14:00-15:00 - Line-manager meeting (FIXED)
+15:00-15:45 - [OPEN] - to plan
+15:45-16:00 - Emails (afternoon check)
+16:00-16:45 - [OPEN] - to plan
+16:45-17:00 - Review day, review cowork output
+
+Note: Friday — line-manager meeting 14:00–15:00 is fixed. AB#197 should ship today; treat as top priority. Ops have brought forward a piece of development work that jumps the existing queue — clarify scope/next steps when known.
+
+Priorities for today:
+- AB#197 — ship to production (MR pending on devserver)
+- MediaPortal deployment — supervision/monitoring (check in with Alex on next steps)
+- Ops queue-jumper work — clarify scope and what this means for the backlog
+- ADO Plan — underway with Alex; check status
+
+Carried forward from 7/9:
+- AB#197 — MR pending on devserver. Expected to ship today. [Scoping was part of this ticket — ops brought it forward; no action required]
+- Client bug — investigated 7/9; confirm resolved or carry forward
+- MediaPortal deployment — discussed with Alex 7/9; supervision/monitoring item; add to ongoing TODOs
+- ADO Plan — underway with Alex (submitted EOD 7/8). Monitor status.
+- Ops queue-jumper — ops have decided to bring forward a piece of development work ahead of the existing queue. Scope/priority to be confirmed.
+
+Resolved on 7/9 (no carry needed):
+- AB#196 — PR'd 7/9.
+- ADO admin (ExtAPI close-off, tagging) — done 7/9.
+
+Watch / monitoring:
+- AB#173 — shipped to Dev 7/7; continue watching for fallout.
+- AB#188 / AB#190 — SSL fix and Dev VM changes on production 7/8; continue monitoring.
+- MediaPortal — server limit raised 7/9; monitor for issues.
+
+Routine:
+- Email check 3 times - Morning, after lunch and afternoon (8:40-9am; 12:30-12:45pm; 3:45-4pm)
+- Review day and amend task list 4:45pm
+
+Blocked:
+- AB#115 — branch protection for build jobs. Needs admin access; paid-feature blocker. Backlogged indefinitely pending acquisition clarity. Deprioritised.
+- AB#156 (PilotApp push notifications) — BLOCKED pending ADO completion. 5 slips. Do not schedule until ADO is signed off and Alex has capacity.
+- AI Fluency Course — out of hours. Continue AI Fluency training stack.
+
+Notes:
+- Company acquisition (completed Fri 26/6) is the backdrop: capacity is tight, timelines uncertain, and the steer is to tighten up on deliverables, deadlines and time allocation.
+- Key for issues: AB = Azure Boards, GH = GitHub issue, GL = Gitlab Work item (until everything is migrated)
+- Sam on jury duty from 6/7 (two weeks) — reduced IT support cover.
+- Completed AI Fluency 101 on 10/7/26 - moved onto next module
+- For next week - PilotApp reports daily as part of Cowork task?
+
+What got accomplished:
+08:40-08:50 - Emails
+08:50-08:55 - Cowork output review and day planning
+08:55-10:00 - Final testing and review before AB#197 ships
+10:00-10:15 - Incident - AppSrv2 API outage
+10:15-10:30 - AB#197 now blocked by Jordan
+10:30-11:00 - FILL IN
+11:00-11:30 - Early lunch
+11:30-14:00 - Working on a Report for Alex, speaking to Jordan - shipped AB#197, shipped v1.9.0 for PilotApp
+14:00-15:30 - Team Meeting (overran)
+15:30-16:00 - Deploying to PilotApp again (pushed branch before end of the day)
+16:00-16:30 - Implementing the ADO changes discussed in Team meeting
+16:30-16:45 - Emails
+16:45-17:00 - Day review and cowork output review
