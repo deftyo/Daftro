@@ -6,7 +6,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./reports:/reports
+      - /mnt/c/Users/Matt/TaskList:/reports
     environment:
       - REPORTS_DIR=/reports
       - PORT=3000

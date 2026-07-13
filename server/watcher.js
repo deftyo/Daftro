@@ -10,7 +10,9 @@ function start(reportsDir) {
     ignored:        /(^|[/\\])\../,  // ignore dotfiles
     persistent:     true,
     ignoreInitial:  true,            // store.init() handles the initial scan
-    awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
+    usePolling:     true,            // required for cross-filesystem watching (WSL ↔ Windows)
+    interval:       5000,
+    awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 200 },
   });
 
   watcher
