@@ -147,46 +147,195 @@ function parseTextSection(lines) {
 
 function parseCarryForward(lines) {
   const result = { blocked: [], planned: [], watch: [] };
-  let subSection = null;
-  let subLines = [];
 
-  const flush = () => {
-    if (!subSection) return;
-    if (subSection === 'blocked') result.blocked = parseMarkdownTable(subLines);
-    else if (subSection === 'planned') {
-      result.planned.push(...parseMarkdownTable(subLines));
-    } else if (subSection === 'watch') {
-      result.watch.push(
-        ...subLines
-          .map(l => l.trim())
-          .filter(l => l.startsWith('- '))
-          .map(l => l.slice(2))
-      );
-    }
-    subLines = [];
-  };
+  // ── H3 subsections (July 9-10 format, July 8 format) ─────────────────────
+  if (lines.some(l => l.startsWith('### '))) {
+    let subSection = null;
+    let subLines = [];
 
-  for (const line of lines) {
-    if (line.startsWith('### ')) {
-      flush();
-      const h = line.slice(4).toLowerCase();
-      if (h.includes('blocked'))                                         subSection = 'blocked';
-      else if (h.includes('planned') || h.includes('not completed') ||
-               h.includes('incomplete') || h.includes('in-progress') ||
-               h.includes('carried'))                                    subSection = 'planned';
-      else if (h.includes('watch') || h.includes('monitor'))            subSection = 'watch';
-      else subSection = null;
-    } else {
-      subLines.push(line);
+    const flush = () => {
+      if (!subSection) return;
+      if (subSection === 'blocked') {
+        const rows = parseMarkdownTable(subLines);
+        result.blocked = rows.length
+          ? rows
+          : subLines.filter(l => l.trim().startsWith('- ')).map(l => ({ item: l.trim().slice(2) }));
+      } else if (subSection === 'planned') {
+        const rows = parseMarkdownTable(subLines);
+        const items = rows.length
+          ? rows
+          : subLines.filter(l => l.trim().startsWith('- ')).map(l => ({ item: l.trim().slice(2) }));
+        result.planned.push(...items);
+      } else if (subSection === 'watch') {
+        result.watch.push(
+          ...subLines
+            .map(l => l.trim())
+            .filter(l => l.startsWith('- '))
+            .map(l => l.slice(2))
+        );
+      }
+      subLines = [];
+    };
+
+    for (const line of lines) {
+      if (line.startsWith('### ')) {
+        flush();
+        const h = line.slice(4).toLowerCase();
+        if (h.includes('blocked'))                                         subSection = 'blocked';
+        else if (h.includes('planned') || h.includes('not completed') ||
+                 h.includes('incomplete') || h.includes('in-progress') ||
+                 h.includes('carried') || h.includes('slipped'))           subSection = 'planned';
+        else if (h.includes('watch') || h.includes('monitor'))             subSection = 'watch';
+        else subSection = null;
+      } else {
+        subLines.push(line);
+      }
     }
+    flush();
+    return result;
   }
-  flush();
+
+  // ── Bold-header subsections (July 1, 7 format: **Section:**) ─────────────
+  const hasBoldHeader = lines.some(l => /^\*\*[^*]+\*\*:?\s*$/.test(l.trim()));
+
+  if (hasBoldHeader) {
+    let subSection = null;
+    for (const line of lines) {
+      const t = line.trim();
+      const boldMatch = t.match(/^\*\*([^*]+)\*\*:?\s*$/);
+      if (boldMatch) {
+        const h = boldMatch[1].toLowerCase();
+        if (h.includes('blocked'))                                              subSection = 'blocked';
+        else if (h.includes('planned') || h.includes('not completed') ||
+                 h.includes('slipped') || h.includes('incomplete') ||
+                 h.includes('active'))                                          subSection = 'planned';
+        else if (h.includes('watch') || h.includes('monitor') ||
+                 h.includes('reminder') || h.includes('standing'))              subSection = 'watch';
+        else if (h.includes('closed') || h.includes('resolved') ||
+                 h.includes('done') || h.includes('completed'))                 subSection = null;
+        else subSection = null;
+        continue;
+      }
+      // Handle both "- item" and "1. item" numbered list entries
+      const isBullet = t.startsWith('- ') || /^\d+\.\s/.test(t);
+      if (isBullet && subSection) {
+        const item = t.replace(/^-\s+|^\d+\.\s+/, '').replace(/\*\*/g, '').trim();
+        if (subSection === 'blocked')       result.blocked.push({ item });
+        else if (subSection === 'planned')  result.planned.push({ item });
+        else if (subSection === 'watch')    result.watch.push(item);
+      }
+    }
+    return result;
+  }
+
+  // ── Fallback: flat numbered list (June format) ────────────────────────────
+  const items = lines
+    .map(l => l.trim())
+    .filter(l => /^\d+\./.test(l))
+    .map(l => l.replace(/^\d+\.\s*/, '').replace(/\*\*/g, '').trim())
+    .filter(l => l && !/^\(_?all today/i.test(l) && !/^\(_?none/i.test(l));
+  result.planned = items.map(item => ({ item }));
 
   return result;
 }
 
 // ── Metrics extraction ────────────────────────────────────────────────────────
 
+// For bullet-list Totals sections (June, July 1–7 format — many label variants)
+function extractMetricsFromBullets(lines) {
+  const m = {
+    dayStart: null, dayEnd: null,
+    unplannedMinutes: null, unplannedPercent: null,
+    plannedCompleted: null, plannedTotal: null,
+    slippedCount: null,
+    carryForwardCount: null,
+    incidentCount: null,
+    gapCount: null,
+  };
+
+  for (const line of lines) {
+    // Strip bold markers, italic, bullet prefix
+    const t = line.trim().replace(/\*\*/g, '').replace(/^[-*]\s+/, '').replace(/^_|_$/g, '');
+    if (!t) continue;
+
+    // Day start/end — any line mentioning logged/productive/worked/elapsed that has a time range
+    if (/\b(?:logged|productive|worked|elapsed|hours?)\b/i.test(t)) {
+      const times = t.match(/(\d{1,2}:\d{2})[–\-—](\d{1,2}:\d{2})/);
+      if (times && !m.dayStart) { m.dayStart = times[1]; m.dayEnd = times[2]; }
+    }
+
+    // Unplanned share — "Unplanned share: ~32%", "Unplanned/incident share: ~31%"
+    if (/unplanned[/\w]*\s*(?:share|%)/i.test(t) || (/unplanned/i.test(t) && /%/.test(t))) {
+      if (!m.unplannedPercent) {
+        const pct = t.match(/[≈~]?\s*(\d+)[–\-]?(\d+)?%/);
+        if (pct) m.unplannedPercent = pct[2] ? `${pct[1]}-${pct[2]}%` : `${pct[1]}%`;
+      }
+    }
+
+    // Planned completion — multiple label variants:
+    //   "Planned items completed: 8 of 10"  "Planned items completed: 8"
+    //   "Planned items: ~5 completed ... vs ~3 slipped"
+    //   "Planned items: 5 done ... 1 slipped"   "Planned items: ~7 of 11 completed"
+    //   "Planned priorities: 1 of 3"
+    if (/planned (?:items?|priorities?)[: ]/i.test(t) && m.plannedCompleted == null) {
+      // "X of Y" or "~X of ~Y"
+      const ofN    = t.match(/~?(\d+)\s+of\s+(?:the\s+)?~?(\d+)/);
+      // "X/Y" fraction  — skip if preceded by non-digit (e.g. "MD/AB#114")
+      const slash  = t.match(/(?<!\w)(\d+)\/(\d+)/);
+      // "~X completed" or "X done" or "X progressed"
+      const doneN  = t.match(/~?(\d+)\s+(?:completed|done|progressed)/i);
+      // "N slipped" with up to 4 intervening words (e.g. "3 key dev items slipped")
+      const slipN  = t.match(/\b~?(\d+)\b(?:\s+\w+){0,4}\s+(?:slipped|not\s+done|not\s+completed)\b/i);
+      // Bare number right after colon — "Planned items completed: 8 (detail...)"
+      const colonN = ofN || slash || doneN ? null : t.match(/:\s*~?(\d+)\s*(?:\(|,|$)/);
+
+      if (ofN) {
+        m.plannedCompleted = parseInt(ofN[1], 10);
+        m.plannedTotal     = parseInt(ofN[2], 10);
+      } else if (slash) {
+        m.plannedCompleted = parseInt(slash[1], 10);
+        m.plannedTotal     = parseInt(slash[2], 10);
+      } else if (doneN) {
+        m.plannedCompleted = parseInt(doneN[1], 10);
+      } else if (colonN) {
+        m.plannedCompleted = parseInt(colonN[1], 10);
+      }
+
+      if (slipN && m.slippedCount == null) m.slippedCount = parseInt(slipN[1], 10);
+    }
+
+    // Standalone "Slipped/not done: 3 (...)"
+    if (/^slipped[^:]*:/i.test(t)) {
+      const n = t.match(/:\s*(\d+)/);
+      if (n && m.slippedCount == null) m.slippedCount = parseInt(n[1], 10);
+    }
+
+    // Unplanned minutes from Totals bullets — "~4h on unplanned", "~2h40m unplanned", "~2h15m (~24%)"
+    if (!m.unplannedMinutes && /unplanned/i.test(t)) {
+      const hm    = t.match(/~?(\d+)h\s*(\d+)\s*m(?:in)?\b/i);
+      const honly = t.match(/~?(\d+(?:\.\d+)?)h\b/i);
+      if (hm)    m.unplannedMinutes = parseInt(hm[1]) * 60 + parseInt(hm[2]);
+      else if (honly) m.unplannedMinutes = Math.round(parseFloat(honly[1]) * 60);
+    }
+  }
+
+  if (m.plannedCompleted != null && m.plannedTotal == null && m.slippedCount != null) {
+    m.plannedTotal = m.plannedCompleted + m.slippedCount;
+  }
+
+  // Last resort: first line with a HH:MM–HH:MM range (covers "~9h logged (07:55–17:00)" etc.)
+  if (!m.dayStart) {
+    for (const line of lines) {
+      const t = line.trim().replace(/\*\*/g, '');
+      const times = t.match(/(\d{1,2}:\d{2})[–\-—](\d{1,2}:\d{2})/);
+      if (times) { m.dayStart = times[1]; m.dayEnd = times[2]; break; }
+    }
+  }
+
+  return m;
+}
+
+// For table-based ## Totals Summary sections (July 8-10 format)
 function extractMetrics(tableRows) {
   const m = {
     dayStart: null, dayEnd: null,
@@ -203,33 +352,39 @@ function extractMetrics(tableRows) {
     const value = row.value  || '';
 
     // Day start/end
-    // Example: "day start → end"       → "08:40–17:00 ≈ **8 h 20 min** logged"
-    // Real:    "approx. hours logged"   → "~7.5h (08:10–16:00+, minus 30 min lunch)"
-    if (key.includes('day start') || key.includes('hours logged')) {
+    // Example:  "day start → end"      → "08:40–17:00 ≈ **8 h 20 min** logged"
+    // July 8:   "day span"             → "08:30–17:00 (8.5h; ~8h working after lunch)"
+    // Real:     "approx. hours logged" → "~7.5h (08:10–16:00+, minus 30 min lunch)"
+    if (key.includes('day start') || key.includes('hours logged') || key.includes('day span')) {
       const times = value.match(/(\d{1,2}:\d{2})[–\-](\d{1,2}:\d{2})/);
       if (times) { m.dayStart = times[1]; m.dayEnd = times[2]; }
     }
 
     // Unplanned time — example format only (real format uses bold line, handled in root parser)
-    if (key.includes('unplanned time')) {
+    if (key.includes('unplanned time') && !key.includes('share')) {
       const hm   = value.match(/~?(\d+)h\s*(\d+)?\s*min/i);
-      const mins = value.match(/~?(\d+)\s*min/i);
+      const mins = value.match(/~?(\d+)\s*m(?:in)?\b/i);
       if (hm)   m.unplannedMinutes = parseInt(hm[1]) * 60 + (parseInt(hm[2]) || 0);
       else if (mins) m.unplannedMinutes = parseInt(mins[1], 10);
     }
 
-    // Unplanned share/percent — both formats
+    // Unplanned share/percent — all formats
     if (key.includes('unplanned share') || key.includes('unplanned time')) {
-      const pct = value.match(/~?(\d+)[–\-]?(\d+)?%/);
+      const pct = value.replace(/\*\*/g, '').match(/[≈~]?\s*(\d+)[–\-]?(\d+)?%/);
       if (pct) m.unplannedPercent = pct[2] ? `${pct[1]}-${pct[2]}%` : `${pct[1]}%`;
     }
 
     // Planned items completed
-    // Example: "7 of ~8 discrete items"
-    // Real:    "Vlad ✓, AB#196 PR ✓, ADO admin ✓, lunch (late) ✓"
+    // Example:  "7 of ~8 discrete items"
+    // July 8:   "4/5 concrete tasks (AB#176 ✓, ...)"
+    // Real:     "Vlad ✓, AB#196 PR ✓, ADO admin ✓, lunch (late) ✓"
     if (key.includes('planned items completed')) {
-      const counts = value.match(/(\d+)\s+of\s+~?(\d+)/);
-      if (counts) {
+      const fraction = value.match(/(\d+)\/(\d+)/);
+      const counts   = value.match(/(\d+)\s+of\s+~?(\d+)/);
+      if (fraction) {
+        m.plannedCompleted = parseInt(fraction[1], 10);
+        m.plannedTotal     = parseInt(fraction[2], 10);
+      } else if (counts) {
         m.plannedCompleted = parseInt(counts[1], 10);
         m.plannedTotal     = parseInt(counts[2], 10);
       } else {
@@ -239,12 +394,19 @@ function extractMetrics(tableRows) {
     }
 
     // Slipped count
-    // Example: separated by ";"     → "ADO (partial); after-lunch email (not logged)"
-    // Real:    separated by ","     → "AB#156 Webpush, day-end review (in progress)"
-    if (key.includes('slipped') || key.includes('partial')) {
+    // Example:  separated by ";"  → "ADO (partial); after-lunch email (not logged)"
+    // Real:     separated by ","  → "AB#156 Webpush, day-end review (in progress)"
+    // July 8:   "1 (RG feature branch merge)"
+    if (key.includes('planned items slipped') || key.includes('slipped') || key.includes('partial')) {
       if (value && !/none/i.test(value)) {
-        const parts = value.split(/[;,]/).map(s => s.trim()).filter(Boolean);
-        if (parts.length) m.slippedCount = parts.length;
+        // First try a bare number
+        const bare = value.match(/^(\d+)\s*(?:\(|$)/);
+        if (bare) {
+          m.slippedCount = parseInt(bare[1], 10);
+        } else {
+          const parts = value.split(/[;,]/).map(s => s.trim()).filter(Boolean);
+          if (parts.length) m.slippedCount = parts.length;
+        }
       }
     }
   }
@@ -272,7 +434,13 @@ function parseReportContent(content) {
     outstanding: [],
     carryForward: { blocked: [], planned: [], watch: [] },
     notes: [],
-    metrics: {},
+    metrics: {
+      dayStart: null, dayEnd: null,
+      unplannedMinutes: null, unplannedPercent: null,
+      plannedCompleted: null, plannedTotal: null,
+      slippedCount: null, carryForwardCount: null,
+      incidentCount: null, gapCount: null,
+    },
     gaps: [],
   };
 
@@ -284,52 +452,96 @@ function parseReportContent(content) {
   for (const { heading, contentLines } of splitByH2(lines)) {
     const h = heading.toLowerCase();
 
-    if (h.includes('plan vs actual')) {
+    if (h.includes('plan vs actual') || h.includes('plan vs. actual')) {
       result.planVsActual = parsePlanVsActual(contentLines);
-    } else if (h.includes('unplanned work')) {
+
+    } else if (h.includes('unplanned work') || h.includes('off-plan') ||
+               h.includes('displacement') || h.includes('unplanned')) {
       unplannedSectionLines = contentLines;
       result.unplannedWork = parseMarkdownTable(contentLines);
-    } else if (h.includes('completed work')) {
+
+    } else if (h.includes('completed work') || h.includes('what got done')) {
       result.completedWork = parseCompletedWork(contentLines);
+
     } else if (h === 'priority items' || h.includes('priorities')) {
-      // Real format uses "Priority Items" instead of "Completed Work"
       if (result.completedWork.length === 0) {
         result.completedWork = parseMarkdownTable(contentLines)
           .map(r => [r.priority, r.status].filter(Boolean).join(' — '))
           .filter(Boolean);
       }
+
     } else if (h.includes('totals summary')) {
       result.totalsSummary = parseMarkdownTable(contentLines);
-      result.metrics = extractMetrics(result.totalsSummary);
-    } else if (h.includes('outstanding') || h.includes('not completed today')) {
+      result.metrics = result.totalsSummary.length > 0
+        ? extractMetrics(result.totalsSummary)
+        : extractMetricsFromBullets(contentLines);
+
+    } else if (h.startsWith('totals') && !h.includes('summary')) {
+      // Bullet-list Totals section (June, July 1, 7 format — heading may have suffix like "(approx)")
+      result.metrics = extractMetricsFromBullets(contentLines);
+
+    } else if (h.includes('outstanding') || h.includes('not completed today') ||
+               h.includes('not done') || h.includes('not completed') ||
+               h.includes('slipped')) {
       result.outstanding = parseTextSection(contentLines);
-    } else if (h.includes('carry forward')) {
+
+    } else if (h.includes('carry forward') || h.includes('to carry forward')) {
       result.carryForward = parseCarryForward(contentLines);
-    } else if (h === 'notes') {
+
+    } else if (h === 'notes' || h === 'summary' || h === 'headline') {
       result.notes = parseTextSection(contentLines);
     }
   }
 
-  // Real format: extract unplanned minutes from bold estimated-total line if
-  // it wasn't found in the Totals Summary table.
+  // ── Unplanned minutes fallback ────────────────────────────────────────────
+  // 1) Check for a bold total line in the unplanned section
   if (!result.metrics.unplannedMinutes) {
     const boldLine = unplannedSectionLines
       .map(l => l.trim())
-      .find(l => /estimated unplanned|unplanned total/i.test(l));
+      .find(l =>
+        /estimated unplanned|unplanned total|total unplanned|combined unplanned/i.test(l) ||
+        (/unplanned[^:]*time[^:]*:|combined.*unplanned/i.test(l) && /\d+h|\d+\s*m(?:in)?\b/i.test(l))
+      );
     if (boldLine) {
       const hm   = boldLine.match(/~?(\d+)h\s*(\d+)?\s*min/i);
-      const mins = boldLine.match(/~?(\d+)\s*min/i);
-      if (hm)   result.metrics.unplannedMinutes = parseInt(hm[1]) * 60 + (parseInt(hm[2]) || 0);
+      const mins = boldLine.match(/~?(\d+)\s*m(?:in)?\b/i);
+      if (hm)        result.metrics.unplannedMinutes = parseInt(hm[1]) * 60 + (parseInt(hm[2]) || 0);
       else if (mins) result.metrics.unplannedMinutes = parseInt(mins[1], 10);
 
       if (!result.metrics.unplannedPercent) {
-        const pct = boldLine.match(/≈\s*~?(\d+)%/);
+        const pct = boldLine.match(/[≈~]\s*(\d+)%/);
         if (pct) result.metrics.unplannedPercent = `${pct[1]}%`;
       }
     }
   }
 
-  // Incident count: check tag column (example) or item text (real format)
+  // 2) Sum columns from the unplanned work table as a last resort
+  if (!result.metrics.unplannedMinutes && result.unplannedWork.length > 0) {
+    let total = 0;
+    let found = false;
+    for (const row of result.unplannedWork) {
+      // June format: numeric 'mins' column
+      if (row.mins && /^\d+$/.test(row.mins.trim())) {
+        total += parseInt(row.mins, 10);
+        found = true;
+      // July 8 format: 'duration' column like "~70 min"
+      } else if (row.duration) {
+        const hm = row.duration.match(/~?(\d+)h\s*(\d+)?/i);
+        const m  = row.duration.match(/~?(\d+)\s*m(?:in)?\b/i);
+        if (hm) { total += parseInt(hm[1]) * 60 + (parseInt(hm[2]) || 0); found = true; }
+        else if (m) { total += parseInt(m[1], 10); found = true; }
+      // July 7 format: 'time' column like "(20m)" or "~5h45"
+      } else if (row.time) {
+        const paren = row.time.match(/\((\d+)m\)/);
+        const hm    = row.time.match(/~(\d+)h(\d+)/);
+        if (paren) { total += parseInt(paren[1], 10); found = true; }
+        else if (hm) { total += parseInt(hm[1]) * 60 + parseInt(hm[2]); found = true; }
+      }
+    }
+    if (found && total > 0) result.metrics.unplannedMinutes = total;
+  }
+
+  // ── Incident count ────────────────────────────────────────────────────────
   result.metrics.incidentCount = result.unplannedWork.filter(row =>
     (row.tag  && row.tag.toLowerCase().includes('incident')) ||
     (row.item && row.item.toLowerCase().includes('incident') && !/fill in/i.test(row.item))
