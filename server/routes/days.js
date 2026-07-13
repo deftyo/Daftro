@@ -5,16 +5,25 @@ const store      = require('../store');
 
 const router = Router();
 
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function formatLabel(dateStr) {
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length !== 3) return dateStr;
+  const [month, day] = parts;
+  return `${day} ${MONTHS[month - 1]}`;
+}
+
 // GET /api/days — list all days (summary, no full parse bodies)
 router.get('/', (_req, res) => {
   const days = store.getAll().map(d => ({
     date:       d.date,
+    label:      formatLabel(d.date),
     parsedDate: d.parsedDate,
     isComplete: d.isComplete,
     gaps:       d.gaps,
     tasklistError: d.tasklistError,
     reportError:   d.reportError,
-    // Surface top-level metrics without sending the full parsed objects
     metrics:    d.report?.metrics ?? null,
     priorities: d.tasklist?.priorities ?? null,
   }));
