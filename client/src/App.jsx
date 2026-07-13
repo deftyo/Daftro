@@ -5,9 +5,9 @@ import DayDetail from './pages/DayDetail';
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      <header className="border-b border-gray-800 px-6 py-4">
-        <a href="/" className="text-xl font-bold tracking-tight text-white hover:text-gray-300">
+    <div className="min-h-screen bg-brand-6 text-gray-100">
+      <header className="border-b border-brand-8 bg-brand-5 px-6 py-4">
+        <a href="/" className="text-xl font-bold tracking-tight text-white hover:text-brand-1 transition-colors">
           Daftro
         </a>
       </header>

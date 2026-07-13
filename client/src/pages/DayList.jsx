@@ -3,15 +3,15 @@ import { Link } from 'react-router-dom';
 
 function StatusBadge({ isComplete }) {
   return isComplete
-    ? <span className="rounded-full bg-emerald-900 px-2 py-0.5 text-xs text-emerald-300">Complete</span>
-    : <span className="rounded-full bg-yellow-900 px-2 py-0.5 text-xs text-yellow-300">Partial</span>;
+    ? <span className="rounded-full bg-brand-2/30 px-2 py-0.5 text-xs text-brand-1 border border-brand-2/50">Complete</span>
+    : <span className="rounded-full bg-brand-9/30 px-2 py-0.5 text-xs text-purple-300 border border-brand-9/50">Partial</span>;
 }
 
 function MetricPill({ label, value }) {
   if (value == null) return null;
   return (
-    <span className="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-300">
-      <span className="text-gray-500">{label} </span>{value}
+    <span className="rounded bg-brand-7 border border-brand-8 px-2 py-0.5 text-xs text-gray-300">
+      <span className="text-brand-3">{label} </span>{value}
     </span>
   );
 }
@@ -23,7 +23,7 @@ function DayCard({ day }) {
   return (
     <Link
       to={`/${day.date}`}
-      className="block rounded-lg border border-gray-800 bg-gray-900 p-5 hover:border-gray-600 transition-colors"
+      className="block rounded-lg border border-brand-8 bg-brand-7 p-5 hover:border-brand-4 hover:bg-brand-6 transition-colors"
     >
       <div className="flex items-center justify-between gap-4">
         <span className="font-mono text-lg font-semibold text-white">{dateLabel}</span>
@@ -72,12 +72,12 @@ export default function DayList() {
   }, []);
 
   if (error) return <p className="text-red-400">Failed to load: {error}</p>;
-  if (!days)  return <p className="text-gray-500">Loading…</p>;
-  if (days.length === 0) return <p className="text-gray-500">No reports found in the reports directory.</p>;
+  if (!days)  return <p className="text-brand-3">Loading…</p>;
+  if (days.length === 0) return <p className="text-brand-3">No reports found in the reports directory.</p>;
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">Daily Reports</h1>
+      <h1 className="mb-6 text-2xl font-bold text-white">Daily Reports</h1>
       <div className="flex flex-col gap-3">
         {days.map(d => <DayCard key={d.date} day={d} />)}
       </div>
