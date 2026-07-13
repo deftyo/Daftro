@@ -53,17 +53,20 @@ function buildDay(dateStr, tasklistPath, reportPath) {
   return day;
 }
 
-// Scans a directory for paired Tasklist/Report files and returns sorted day objects.
-function scanDirectory(dirPath) {
-  const files = fs.readdirSync(dirPath);
+// Scans directories for paired Tasklist/Report files and returns sorted day objects.
+// reportsDir defaults to tasklistsDir when tasklists and reports share one location.
+function scanDirectory(tasklistsDir, reportsDir = tasklistsDir) {
   const tasklists = {};
   const reports   = {};
 
-  for (const file of files) {
+  for (const file of fs.readdirSync(tasklistsDir)) {
     const tm = file.match(TASKLIST_RE);
-    if (tm) { tasklists[tm[1]] = path.join(dirPath, file); continue; }
+    if (tm) tasklists[tm[1]] = path.join(tasklistsDir, file);
+  }
+
+  for (const file of fs.readdirSync(reportsDir)) {
     const rm = file.match(REPORT_RE);
-    if (rm) { reports[rm[1]]   = path.join(dirPath, file); }
+    if (rm) reports[rm[1]] = path.join(reportsDir, file);
   }
 
   const dates = new Set([...Object.keys(tasklists), ...Object.keys(reports)]);

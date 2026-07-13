@@ -6,8 +6,10 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - /mnt/c/Users/Matt/TaskList:/reports
+      - /mnt/c/Users/Matt/TaskList/archive:/tasklists
+      - /mnt/c/Users/Matt/TaskList/reports:/reports
     environment:
+      - TASKLISTS_DIR=/tasklists
       - REPORTS_DIR=/reports
       - PORT=3000
     restart: unless-stopped

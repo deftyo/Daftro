@@ -5,8 +5,9 @@ const store    = require('./store');
 
 const FILE_RE = /^(Tasklist|Report)-\d+-\d+-\d+\.(txt|md)$/i;
 
-function start(reportsDir) {
-  const watcher = chokidar.watch(reportsDir, {
+function start(tasklistsDir, reportsDir = tasklistsDir) {
+  const dirs = tasklistsDir === reportsDir ? [tasklistsDir] : [tasklistsDir, reportsDir];
+  const watcher = chokidar.watch(dirs, {
     ignored:        /(^|[/\\])\../,  // ignore dotfiles
     persistent:     true,
     ignoreInitial:  true,            // store.init() handles the initial scan
