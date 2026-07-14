@@ -24,4 +24,4 @@ COPY server/ ./server/
 EXPOSE 3000
 
 # Run migrations then start the server
-CMD ["sh", "-c", "cd server && npx prisma migrate deploy && node index.js"]
+CMD ["node", "server/index.js"]

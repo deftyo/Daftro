@@ -10,7 +10,8 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "chokidar": "^3.6.0",
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",

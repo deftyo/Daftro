@@ -23,6 +23,7 @@ app.use(express.static(CLIENT_DIR));
 app.get('*', (_req, res) => res.sendFile(path.join(CLIENT_DIR, 'index.html')));
 
 async function main() {
+  await require('./scripts/db-init')();
   await store.init(TASKLISTS_DIR, REPORTS_DIR);
   watcher.start(TASKLISTS_DIR, REPORTS_DIR);
   app.listen(PORT, () => {
