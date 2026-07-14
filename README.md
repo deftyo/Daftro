@@ -35,12 +35,11 @@ npm test       # 77 tests — confirms parsers are working
 
 ## Running (Docker)
 
-Edit `docker-compose.yml` to point the two volume mounts at your file directories:
+Copy the example env file and set your paths:
 
-```yaml
-volumes:
-  - /mnt/c/Users/YourName/TaskList/archive:/tasklists   # Tasklist-*.txt files
-  - /mnt/c/Users/YourName/TaskList/reports:/reports      # Report-*.md files
+```bash
+cp .env.example .env
+# edit .env — set TASKLISTS_DIR and REPORTS_DIR to your local paths
 ```
 
 Then:
