@@ -12,9 +12,6 @@ RUN cd server && npm ci --production=false
 COPY server/prisma ./server/prisma/
 RUN cd server && npx prisma generate
 
-# Prune dev dependencies after generate
-RUN cd server && npm prune --production
-
 # Build frontend
 COPY client/package*.json ./client/
 RUN cd client && npm ci
