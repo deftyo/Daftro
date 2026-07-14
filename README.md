@@ -149,3 +149,4 @@ Older formats (bullet-list Totals, flat plan tables, numbered carry-forward list
 - [ ] Phase 7 — Deployment (containerised deploy to a self-hosted or cloud target)
 - [ ] Phase 8 — Timelog UI (replace text file editing)
 - [ ] Phase 9 — Trends on DB data (richer queries, week/month aggregation)
+- [ ] Phase 10 — Cowork API integration (Cowork writes structured plan/actuals directly to Daftro's API at morning and EOD; replaces file-based I/O and format-variant parsing)
