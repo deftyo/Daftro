@@ -2,23 +2,22 @@
 
 const { scanDirectory, buildDay } = require('./parsers/index');
 
-// In-memory store — single source of truth for parsed day objects.
-// Days are keyed by their date string (M-DD-YYYY) for O(1) lookup.
 let _days = [];
 let _byDate = {};
-let _reportsDir = null;
+let _tasklistsDir = null;
+let _reportsDir   = null;
 
-function init(reportsDir) {
-  _reportsDir = reportsDir;
+function init(tasklistsDir, reportsDir = tasklistsDir) {
+  _tasklistsDir = tasklistsDir;
+  _reportsDir   = reportsDir;
   _reload();
 }
 
 function _reload() {
-  _days   = scanDirectory(_reportsDir);
+  _days   = scanDirectory(_tasklistsDir, _reportsDir);
   _byDate = Object.fromEntries(_days.map(d => [d.date, d]));
 }
 
-// Re-parse a single file and update both indexes.
 function refreshFile(filePath) {
   const { TASKLIST_RE, REPORT_RE } = _patterns();
   const basename = require('path').basename(filePath);
@@ -28,10 +27,9 @@ function refreshFile(filePath) {
   const dateStr = tm ? tm[1] : rm ? rm[1] : null;
   if (!dateStr) return;
 
-  // Determine paths for both sides of the pair (they may not both exist yet)
   const path = require('path');
-  const tasklistPath = path.join(_reportsDir, `Tasklist-${dateStr}.txt`);
-  const reportPath   = path.join(_reportsDir, `Report-${dateStr}.md`);
+  const tasklistPath = path.join(_tasklistsDir, `Tasklist-${dateStr}.txt`);
+  const reportPath   = path.join(_reportsDir,   `Report-${dateStr}.md`);
   const fs = require('fs');
   const tExists = fs.existsSync(tasklistPath);
   const rExists = fs.existsSync(reportPath);
@@ -53,12 +51,11 @@ function refreshFile(filePath) {
 }
 
 function removeFile(filePath) {
-  // On delete just do a full reload — simple and correct
   _reload();
 }
 
-function getAll()       { return _days; }
-function getByDate(d)   { return _byDate[d] ?? null; }
+function getAll()     { return _days; }
+function getByDate(d) { return _byDate[d] ?? null; }
 
 function _patterns() {
   return {
