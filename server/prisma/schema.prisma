@@ -1,0 +1,40 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Day {
+  id    Int    @id @default(autoincrement())
+  date  String @unique  // M-DD-YYYY
+
+  // Derived from filename / parsed header
+  parsedDate  DateTime?
+  isComplete  Boolean   @default(false)
+  hasGap      Boolean   @default(false)
+
+  // File presence flags
+  tasklistMissing Boolean @default(false)
+  reportMissing   Boolean @default(false)
+
+  // Metrics extracted from the report Totals section
+  dayStart          String?
+  dayEnd            String?
+  plannedCompleted  Int?
+  plannedTotal      Int?
+  slippedCount      Int?
+  unplannedPercent  String?
+  unplannedMinutes  Int?
+  carryForwardCount Int?
+  incidentCount     Int?
+
+  // Full parsed output — used by the detail view and the watcher
+  tasklistData Json?
+  reportData   Json?
+
+  updatedAt DateTime @updatedAt
+}

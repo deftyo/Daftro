@@ -14,27 +14,35 @@ function formatLabel(dateStr) {
   return `${day} ${MONTHS[month - 1]}`;
 }
 
-// GET /api/days — list all days (summary, no full parse bodies)
-router.get('/', (_req, res) => {
-  const days = store.getAll().map(d => ({
-    date:       d.date,
-    label:      formatLabel(d.date),
-    parsedDate: d.parsedDate,
-    isComplete: d.isComplete,
-    gaps:       d.gaps,
-    tasklistError: d.tasklistError,
-    reportError:   d.reportError,
-    metrics:    d.report?.metrics ?? null,
-    priorities: d.tasklist?.priorities ?? null,
-  }));
-  res.json(days);
+router.get('/', async (_req, res) => {
+  try {
+    const days = (await store.getAll()).map(d => ({
+      date:          d.date,
+      label:         formatLabel(d.date),
+      parsedDate:    d.parsedDate,
+      isComplete:    d.isComplete,
+      gaps:          d.gaps,
+      tasklistError: d.tasklistError,
+      reportError:   d.reportError,
+      metrics:       d.report?.metrics ?? null,
+      priorities:    d.tasklist?.priorities ?? null,
+    }));
+    res.json(days);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-// GET /api/days/:date — full day object for a single date (M-DD-YYYY)
-router.get('/:date', (req, res) => {
-  const day = store.getByDate(req.params.date);
-  if (!day) return res.status(404).json({ error: 'Day not found', date: req.params.date });
-  res.json(day);
+router.get('/:date', async (req, res) => {
+  try {
+    const day = await store.getByDate(req.params.date);
+    if (!day) return res.status(404).json({ error: 'Day not found', date: req.params.date });
+    res.json(day);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 module.exports = router;

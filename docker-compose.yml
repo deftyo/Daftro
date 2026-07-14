@@ -1,4 +1,18 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: daftro
+      POSTGRES_PASSWORD: daftro
+      POSTGRES_DB: daftro
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U daftro"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   daftro:
     build:
       context: .
@@ -12,4 +26,11 @@ services:
       - TASKLISTS_DIR=/tasklists
       - REPORTS_DIR=/reports
       - PORT=3000
+      - DATABASE_URL=postgresql://daftro:daftro@postgres:5432/daftro
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  postgres_data:
