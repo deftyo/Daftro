@@ -25,27 +25,30 @@ nvm install --lts
 ## Getting started
 
 ```bash
+docker run -d \
+  --name daftro \
+  -p 3000:3000 \
+  -e TASKLISTS_DIR=/tasklists \
+  -e REPORTS_DIR=/reports \
+  -v /path/to/your/tasklists:/tasklists \
+  -v /path/to/your/reports:/reports \
+  ghcr.io/deftyo/daftro:latest
+```
+
+Open `http://localhost:3000`. After the first run, `docker start daftro` is all you need.
+
+**Windows users:** run from WSL2. Use `/mnt/c/...` paths for the volume mounts.
+
+## Running (Docker Compose)
+
+Clone the repo, copy the example env file and set your paths:
+
+```bash
 git clone https://github.com/deftyo/Daftro.git daftro
 cd daftro
-cd server && npm install && cd ..
-npm test       # 77 tests — confirms parsers are working
-```
-
-*(Windows: run inside WSL)*
-
-## Running (Docker)
-
-Copy the example env file and set your paths:
-
-```bash
 cp .env.example .env
 # edit .env — set TASKLISTS_DIR and REPORTS_DIR to your local paths
-```
-
-Then:
-
-```bash
-docker compose up --build
+docker compose up
 ```
 
 Open `http://localhost:3000`.
