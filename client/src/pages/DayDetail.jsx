@@ -244,9 +244,17 @@ export default function DayDetail() {
 
   return (
     <div>
-      <Link to="/" className="mb-6 inline-block text-sm text-brand-3 hover:text-brand-1 transition-colors">
-        ← All reports
-      </Link>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <Link to="/" className="text-sm text-brand-3 hover:text-brand-1 transition-colors">
+          ← All reports
+        </Link>
+        <Link
+          to={`/${date}/edit`}
+          className="rounded px-3 py-1.5 text-xs font-medium border border-brand-8 bg-brand-7 text-brand-3 hover:text-gray-100 hover:border-brand-4 transition-colors"
+        >
+          Edit
+        </Link>
+      </div>
 
       <h1 className="mb-2 text-2xl font-bold text-white">
         {rp?.title ?? date.replace(/-/g, '/')}

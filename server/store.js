@@ -67,6 +67,46 @@ async function getByDate(dateStr) {
   return row ? _rowToDay(row) : null;
 }
 
+async function upsertDay(dateStr, { tasklist = null, report = null, isComplete = false }) {
+  const m = report?.metrics ?? {};
+  const cf = report?.carryForward ?? null;
+  const parts = dateStr.split('-').map(Number);
+  let parsedDate = null;
+  if (parts.length === 3) {
+    const [month, day, year] = parts;
+    parsedDate = new Date(year, month - 1, day);
+  }
+  const fields = {
+    parsedDate,
+    isComplete,
+    hasGap:           false,
+    tasklistMissing:  false,
+    reportMissing:    false,
+    dayStart:         m.dayStart         ?? null,
+    dayEnd:           m.dayEnd           ?? null,
+    plannedCompleted: m.plannedCompleted ?? null,
+    plannedTotal:     m.plannedTotal     ?? null,
+    slippedCount:     m.slippedCount     ?? null,
+    unplannedPercent: m.unplannedPercent ?? null,
+    unplannedMinutes: m.unplannedMinutes ?? null,
+    carryForwardCount: cf
+      ? (cf.blocked?.length ?? 0) + (cf.planned?.length ?? 0)
+      : null,
+    incidentCount:    m.incidentCount    ?? null,
+    tasklistData:     tasklist,
+    reportData:       report,
+  };
+  await prisma.day.upsert({
+    where:  { date: dateStr },
+    update: fields,
+    create: { date: dateStr, ...fields },
+  });
+}
+
+async function deleteDay(dateStr) {
+  await prisma.day.deleteMany({ where: { date: dateStr } });
+}
+
 // ── helpers ─────────────────────────────────────────────────────────────────
 
 async function _upsert(day) {
@@ -112,4 +152,4 @@ function _rowToDay(row) {
   };
 }
 
-module.exports = { init, refreshFile, removeFile, getAll, getByDate };
+module.exports = { init, refreshFile, removeFile, getAll, getByDate, upsertDay, deleteDay };
