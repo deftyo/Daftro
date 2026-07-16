@@ -7,6 +7,27 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: daftro
+          POSTGRES_PASSWORD: daftro
+          POSTGRES_DB: daftro
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://daftro:daftro@localhost:5432/daftro
+      TASKLISTS_DIR: reports/example
+      REPORTS_DIR: reports/example
+
     steps:
       - uses: actions/checkout@v4
 
@@ -17,6 +38,12 @@ jobs:
           cache-dependency-path: server/package-lock.json
 
       - run: npm ci
+        working-directory: server
+
+      - run: npx prisma generate
+        working-directory: server
+
+      - run: node scripts/db-init.js
         working-directory: server
 
       - run: npm test
