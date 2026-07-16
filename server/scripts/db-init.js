@@ -42,3 +42,7 @@ async function main() {
 }
 
 module.exports = main;
+
+if (require.main === module) {
+  main().catch(err => { console.error('db-init failed:', err); process.exit(1); });
+}
