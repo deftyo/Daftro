@@ -20,9 +20,9 @@ function todayHtml() {
 
 // ── Shared input styles ───────────────────────────────────────────────────────
 
-const inputCls = 'bg-brand-7 border border-brand-8 text-gray-100 rounded px-3 py-2 text-sm focus:outline-none focus:border-brand-4 placeholder-brand-3/60 w-full';
-const timeCls  = 'bg-brand-7 border border-brand-8 text-gray-100 rounded px-2 py-2 text-sm font-mono focus:outline-none focus:border-brand-4 w-28';
-const btnCls   = 'rounded px-3 py-1.5 text-xs font-medium transition-colors';
+const inputCls = 'bg-white border border-brand-8 text-gray-900 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-1/20 focus:border-brand-1 placeholder-gray-400 w-full';
+const timeCls  = 'bg-white border border-brand-8 text-gray-900 rounded px-2 py-2 text-sm font-mono focus:outline-none focus:border-brand-1 w-28';
+const btnCls   = 'rounded-md px-3 py-1.5 text-xs font-medium transition-colors';
 
 // ── Reusable sub-components ───────────────────────────────────────────────────
 
@@ -37,7 +37,7 @@ function AddButton({ onClick, label = 'Add' }) {
     <button
       type="button"
       onClick={onClick}
-      className={`${btnCls} border border-brand-8 bg-brand-7 text-brand-3 hover:text-gray-100 hover:border-brand-4 mt-2`}
+      className={`${btnCls} border border-brand-8 bg-white text-brand-3 hover:text-gray-700 hover:border-brand-1 mt-2`}
     >
       + {label}
     </button>
@@ -49,7 +49,7 @@ function RemoveButton({ onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="text-brand-3 hover:text-red-400 transition-colors px-1.5 py-1 text-sm leading-none shrink-0"
+      className="text-gray-400 hover:text-red-500 transition-colors px-1.5 py-1 text-sm leading-none shrink-0"
       aria-label="Remove"
     >
       ×
@@ -529,7 +529,7 @@ export default function DayEditor() {
       {/* Header */}
       <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-1">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">
             {isNew ? 'New Day' : `Edit — ${dateParam.replace(/-/g, '/')}`}
           </h1>
           {isNew && (
@@ -556,7 +556,7 @@ export default function DayEditor() {
               type="button"
               onClick={del}
               disabled={deleting}
-              className={`${btnCls} border border-red-800/50 bg-red-900/20 text-red-400 hover:bg-red-900/40`}
+              className={`${btnCls} border border-red-200 bg-red-50 text-red-600 hover:bg-red-100`}
             >
               {deleting ? 'Deleting…' : 'Delete'}
             </button>
@@ -565,7 +565,7 @@ export default function DayEditor() {
             type="button"
             onClick={save}
             disabled={saving}
-            className={`${btnCls} bg-brand-2/80 text-white hover:bg-brand-2 border border-brand-2/40`}
+            className={`${btnCls} bg-brand-1 text-white hover:bg-brand-2 border border-brand-1/20 shadow-sm`}
           >
             {saving ? 'Saving…' : 'Save'}
           </button>
@@ -573,7 +573,7 @@ export default function DayEditor() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-lg border border-red-800/50 bg-red-900/20 px-4 py-3 text-sm text-red-400">
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
           {error}
         </div>
       )}
@@ -588,7 +588,7 @@ export default function DayEditor() {
             className={`px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${
               activeTab === tab
                 ? 'border-brand-1 text-brand-1'
-                : 'border-transparent text-brand-3 hover:text-gray-200'
+                : 'border-transparent text-brand-3 hover:text-gray-700'
             }`}
           >
             {tab === 'plan' ? 'Morning Plan' : 'EOD Review'}

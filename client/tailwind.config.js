@@ -5,17 +5,21 @@ export default {
     extend: {
       colors: {
         brand: {
-          1:  '#006466',
-          2:  '#065a60',
-          3:  '#0b525b',
-          4:  '#144552',
-          5:  '#1b3a4b',
-          6:  '#212f45',
-          7:  '#272640',
-          8:  '#312244',
-          9:  '#3e1f47',
-          10: '#4d194d',
+          1:  '#1A73E8',  // Google blue — accent, active nav
+          2:  '#1967D2',  // Blue darker — button hover
+          3:  '#5F6368',  // Google grey — secondary text
+          4:  '#1A73E8',  // Blue — focus / hover border
+          5:  '#F8F9FA',  // Surface — header background
+          6:  '#F8F9FA',  // Background — page
+          7:  '#FFFFFF',  // Surface — cards, inputs
+          8:  '#E0E0E0',  // Border
+          9:  '#F29900',  // Amber — warning, partial
+          10: '#D93025',  // Red — error, incident
         },
+      },
+      boxShadow: {
+        card: '0 1px 3px 0 rgba(60,64,67,0.15), 0 1px 2px 0 rgba(60,64,67,0.10)',
+        'card-hover': '0 2px 6px 2px rgba(60,64,67,0.15), 0 1px 2px 0 rgba(60,64,67,0.10)',
       },
     },
   },
