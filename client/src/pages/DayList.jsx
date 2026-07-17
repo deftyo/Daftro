@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 function StatusBadge({ isComplete }) {
   return isComplete
@@ -63,6 +63,7 @@ function DayCard({ day }) {
 export default function DayList() {
   const [days, setDays] = useState(null);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetch('/api/days')
@@ -73,14 +74,26 @@ export default function DayList() {
 
   if (error) return <p className="text-red-400">Failed to load: {error}</p>;
   if (!days)  return <p className="text-brand-3">Loading…</p>;
-  if (days.length === 0) return <p className="text-brand-3">No reports found in the reports directory.</p>;
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-white">Daily Reports</h1>
-      <div className="flex flex-col gap-3">
-        {days.map(d => <DayCard key={d.date} day={d} />)}
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold text-white">Daily Reports</h1>
+        <button
+          onClick={() => navigate('/new')}
+          className="rounded px-4 py-2 text-sm font-medium bg-brand-2/80 text-white hover:bg-brand-2 border border-brand-2/40 transition-colors"
+        >
+          + New Day
+        </button>
       </div>
+      {days.length === 0
+        ? <p className="text-brand-3">No reports yet. Create your first day above.</p>
+        : (
+          <div className="flex flex-col gap-3">
+            {days.map(d => <DayCard key={d.date} day={d} />)}
+          </div>
+        )
+      }
     </div>
   );
 }

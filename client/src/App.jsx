@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
 import DayList from './pages/DayList';
 import DayDetail from './pages/DayDetail';
+import DayEditor from './pages/DayEditor';
 import Trends from './pages/Trends';
 
 export default function App() {
@@ -34,7 +35,9 @@ export default function App() {
       <main className="mx-auto max-w-4xl px-6 py-8">
         <Routes>
           <Route path="/" element={<DayList />} />
+          <Route path="/new" element={<DayEditor />} />
           <Route path="/trends" element={<Trends />} />
+          <Route path="/:date/edit" element={<DayEditor />} />
           <Route path="/:date" element={<DayDetail />} />
         </Routes>
       </main>
