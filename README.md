@@ -205,4 +205,5 @@ The current integration relies on the Claude scheduled task making the HTTP call
 - [x] Phase 8 — UI refresh (Google-esque light theme; white/grey surfaces, blue accent, card shadows)
 - [x] Phase 9 — Trends on DB data (richer queries, week/month aggregation; daily/weekly/monthly toggle)
 - [x] Phase 10 — Cowork API integration (EOD skill reads plan from Daftro, builds analysis, writes back as completed day, and creates next day's skeleton; morning skill reads from Daftro for calendar events; file-based flow remains as fallback throughout)
-- [ ] Phase 11 — Deployment (containerised deploy to cloud)
+- [ ] Phase 11 — Calendar integration (iCal feed + outbound webhook; removes Claude dependency for calendar sync)
+- [ ] Phase 12 — Deployment (containerised deploy to cloud)
