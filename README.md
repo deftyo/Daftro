@@ -136,7 +136,7 @@ Older formats (bullet-list Totals, flat plan tables, numbered carry-forward list
 
 | Layer | Tech |
 |-------|------|
-| Backend | Node.js + Express, chokidar file watcher, in-memory store |
+| Backend | Node.js + Express, chokidar file watcher, Postgres + Prisma |
 | Frontend | React + Vite + Tailwind CSS + Recharts |
 | Container | Docker + Docker Compose |
 | Tests | Jest (77 tests, parsers only) |
@@ -149,7 +149,8 @@ Older formats (bullet-list Totals, flat plan tables, numbered carry-forward list
 - [x] Phase 4 — Trends dashboard (completion rate, unplanned time, day length, incidents, carry-forward)
 - [x] Phase 5 — Postgres + Prisma (persist parsed data; import existing files)
 - [x] Phase 6 — Actions pipeline (GitHub Actions CI: test, lint, build on PR)
-- [ ] Phase 7 — Timelog UI (replace text file editing with in-app direct input)
-- [ ] Phase 8 — Trends on DB data (richer queries, week/month aggregation)
-- [ ] Phase 9 — Cowork API integration (Cowork writes structured plan/actuals directly to Daftro's API at morning and EOD; replaces file-based I/O and format-variant parsing)
-- [ ] Phase 10 — Deployment (containerised deploy to cloud; unblocked once file dependency removed in Phase 9)
+- [x] Phase 7 — Timelog UI (replace text file editing with in-app direct input)
+- [x] Phase 8 — UI refresh (Google-esque light theme; white/grey surfaces, blue accent, card shadows)
+- [ ] Phase 9 — Trends on DB data (richer queries, week/month aggregation)
+- [ ] Phase 10 — Cowork API integration (Cowork writes structured plan/actuals directly to Daftro's API at morning and EOD; replaces file-based I/O and format-variant parsing)
+- [ ] Phase 11 — Deployment (containerised deploy to cloud; unblocked once file dependency removed in Phase 10)
