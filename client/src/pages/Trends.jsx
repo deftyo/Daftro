@@ -5,59 +5,51 @@ import DayLength         from '../components/charts/DayLength';
 import IncidentFrequency from '../components/charts/IncidentFrequency';
 import CarryForward      from '../components/charts/CarryForward';
 
-// ── Data helpers ──────────────────────────────────────────────────────────────
+// ── Summary stats ─────────────────────────────────────────────────────────────
 
-function toMins(t) {
-  if (!t) return null;
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
-}
+function summarise(data, view) {
+  const totalDays = view === 'daily'
+    ? data.length
+    : data.reduce((s, d) => s + (d.days ?? 1), 0);
 
-function buildChartData(days) {
-  return days
-    .filter(d => d.isComplete && d.metrics)
-    .slice()
-    .reverse()
-    .map(d => {
-      const m = d.metrics;
-      const startMins = toMins(m.dayStart);
-      const endMins   = toMins(m.dayEnd);
-      return {
-        label:            d.label ?? d.date,
-        date:             d.date,
-        completionRate:   m.plannedTotal > 0
-          ? Math.round(m.plannedCompleted / m.plannedTotal * 100)
-          : null,
-        plannedCompleted: m.plannedCompleted,
-        plannedTotal:     m.plannedTotal,
-        unplannedMinutes: m.unplannedMinutes ?? null,
-        dayLengthHours:   startMins != null && endMins != null
-          ? Math.round((endMins - startMins) / 6) / 10
-          : null,
-        dayStart:         m.dayStart,
-        dayEnd:           m.dayEnd,
-        incidentCount:    m.incidentCount ?? 0,
-        carryForwardCount: m.carryForwardCount ?? 0,
-      };
-    });
-}
-
-function summarise(data) {
   const withRate      = data.filter(d => d.completionRate != null);
   const withUnplanned = data.filter(d => d.unplannedMinutes != null);
+
   return {
-    totalDays:     data.length,
+    totalDays,
     avgCompletion: withRate.length
       ? Math.round(withRate.reduce((s, d) => s + d.completionRate, 0) / withRate.length)
       : null,
-    avgUnplanned:  withUnplanned.length
+    avgUnplanned: withUnplanned.length
       ? Math.round(withUnplanned.reduce((s, d) => s + d.unplannedMinutes, 0) / withUnplanned.length)
       : null,
-    totalIncidents: data.reduce((s, d) => s + d.incidentCount, 0),
+    totalIncidents: data.reduce((s, d) => s + (d.incidentCount ?? 0), 0),
   };
 }
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
+
+const VIEWS = ['daily', 'weekly', 'monthly'];
+
+function ViewToggle({ view, onChange }) {
+  return (
+    <div className="inline-flex rounded-lg border border-brand-8 bg-gray-50 p-0.5 gap-0.5">
+      {VIEWS.map(v => (
+        <button
+          key={v}
+          onClick={() => onChange(v)}
+          className={`rounded-md px-3 py-1 text-sm font-medium capitalize transition-colors ${
+            view === v
+              ? 'bg-white text-gray-900 shadow-sm border border-brand-8'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          {v}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function StatBox({ label, value, sub }) {
   return (
@@ -82,72 +74,91 @@ function ChartCard({ title, subtitle, children }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Trends() {
-  const [days,  setDays]  = useState(null);
+  const [view,  setView]  = useState('daily');
+  const [data,  setData]  = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch('/api/days')
-      .then(r => r.json())
-      .then(setDays)
+    setData(null);
+    setError(null);
+    fetch(`/api/trends/${view}`)
+      .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
+      .then(setData)
       .catch(e => setError(e.message));
-  }, []);
+  }, [view]);
 
-  if (error) return <p className="text-red-600">Failed to load: {error}</p>;
-  if (!days)  return <p className="text-brand-3">Loading…</p>;
-
-  const data = buildChartData(days);
-
-  if (data.length < 2) {
-    return (
-      <div>
-        <h1 className="mb-4 text-2xl font-bold text-gray-900">Trends</h1>
-        <p className="text-brand-3">Need at least 2 complete days to show trends.</p>
-      </div>
-    );
-  }
-
-  const stats = summarise(data);
+  const minPoints = view === 'daily' ? 2 : 1;
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Trends</h1>
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-        <StatBox label="Days logged"      value={stats.totalDays} />
-        <StatBox label="Avg completion"   value={stats.avgCompletion != null ? `${stats.avgCompletion}%` : null} />
-        <StatBox label="Avg unplanned"    value={stats.avgUnplanned != null ? `${stats.avgUnplanned} min` : null} />
-        <StatBox label="Total incidents"  value={stats.totalIncidents} />
+      <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
+        <h1 className="text-2xl font-bold text-gray-900">Trends</h1>
+        <ViewToggle view={view} onChange={setView} />
       </div>
 
-      <ChartCard
-        title="Planned completion rate"
-        subtitle="% of planned items completed each day — dashed line at 80%"
-      >
-        <CompletionRate data={data} />
-      </ChartCard>
+      {error && <p className="text-red-600 mb-4">Failed to load: {error}</p>}
 
-      <ChartCard
-        title="Unplanned time"
-        subtitle="Minutes of unplanned work per day — amber >30 min, red >60 min"
-      >
-        <UnplannedTime data={data} />
-      </ChartCard>
+      {!data && !error && <p className="text-brand-3">Loading…</p>}
 
-      <ChartCard
-        title="Day length"
-        subtitle="Total logged hours — dashed line at 8 h"
-      >
-        <DayLength data={data} />
-      </ChartCard>
+      {data && data.length < minPoints && (
+        <p className="text-brand-3">
+          Not enough data yet — log more complete days to see {view} trends.
+        </p>
+      )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <ChartCard title="Incident frequency" subtitle="Incidents per day">
-          <IncidentFrequency data={data} />
-        </ChartCard>
-        <ChartCard title="Carry-forward count" subtitle="Items slipping to the next day">
-          <CarryForward data={data} />
-        </ChartCard>
-      </div>
+      {data && data.length >= minPoints && (() => {
+        const stats = summarise(data, view);
+        return (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+              <StatBox
+                label="Days logged"
+                value={stats.totalDays}
+                sub={view !== 'daily' ? `across ${data.length} ${view === 'weekly' ? 'weeks' : 'months'}` : null}
+              />
+              <StatBox label="Avg completion"     value={stats.avgCompletion != null ? `${stats.avgCompletion}%` : null} />
+              <StatBox label="Avg unplanned / day" value={stats.avgUnplanned  != null ? `${stats.avgUnplanned} min` : null} />
+              <StatBox label="Total incidents"     value={stats.totalIncidents} />
+            </div>
+
+            <ChartCard
+              title="Planned completion rate"
+              subtitle={`% of planned items completed — ${view} view, dashed line at 80%`}
+            >
+              <CompletionRate data={data} />
+            </ChartCard>
+
+            <ChartCard
+              title="Unplanned time"
+              subtitle={`${view === 'daily' ? 'Minutes per day' : 'Avg minutes per day'} — amber >30 min, red >60 min`}
+            >
+              <UnplannedTime data={data} />
+            </ChartCard>
+
+            <ChartCard
+              title="Day length"
+              subtitle={`${view === 'daily' ? 'Total logged hours' : 'Avg logged hours'} — dashed line at 8 h`}
+            >
+              <DayLength data={data} />
+            </ChartCard>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <ChartCard
+                title="Incident frequency"
+                subtitle={view === 'daily' ? 'Incidents per day' : `Total incidents per ${view === 'weekly' ? 'week' : 'month'}`}
+              >
+                <IncidentFrequency data={data} />
+              </ChartCard>
+              <ChartCard
+                title="Carry-forward count"
+                subtitle={view === 'daily' ? 'Items slipping to next day' : 'Avg carry-forward per day'}
+              >
+                <CarryForward data={data} />
+              </ChartCard>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
