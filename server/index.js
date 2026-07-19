@@ -4,8 +4,9 @@ const express = require('express');
 const path    = require('path');
 const store   = require('./store');
 const watcher = require('./watcher');
-const daysRouter   = require('./routes/days');
-const trendsRouter = require('./routes/trends');
+const daysRouter     = require('./routes/days');
+const trendsRouter   = require('./routes/trends');
+const calendarRouter = require('./routes/calendar');
 
 const app        = express();
 const PORT       = process.env.PORT || 3000;
@@ -17,8 +18,9 @@ const REPORTS_DIR    = process.env.REPORTS_DIR   || DEFAULT_DIR;
 app.use(express.json());
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
-app.use('/api/days',   daysRouter);
-app.use('/api/trends', trendsRouter);
+app.use('/api/days',     daysRouter);
+app.use('/api/trends',   trendsRouter);
+app.use('/api/calendar', calendarRouter);
 
 // Serve the Vite build; fall back to index.html for client-side routing
 app.use(express.static(CLIENT_DIR));
