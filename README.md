@@ -1,13 +1,14 @@
 # Daftro
 
-Self-hosted daily retrospective dashboard. Point it at your daily work files and browse them as a visual plan-vs-actual report with trend charts — no cloud, no database, just your files.
+Self-hosted daily retrospective dashboard. Plan your day, log actuals, and review trends — entirely through the UI or automated via the REST API. Text file import is supported as an optional fallback.
 
 ## What it does
 
 - **Reports view** — per-day plan-vs-actual, unplanned work table, carry-forward list, incident/gap flags
-- **Trends dashboard** — completion rate, unplanned time, day length, incident frequency, carry-forward count charted over time
-- **Live file watching** — drop a new file and the app picks it up automatically (polling-based for WSL↔Windows reliability)
-- Handles multiple report format generations automatically
+- **Trends dashboard** — completion rate, unplanned time, day length, incident frequency, carry-forward count charted over time with daily/weekly/monthly toggle
+- **Day editor** — create and edit days directly in the UI; no text files required
+- **Live file watching** — drop a tasklist or report file and the app picks it up automatically (polling-based for WSL↔Windows reliability)
+- **REST API** — structured JSON API for programmatic writes (see [Automation](#automation))
 
 ## Prerequisites
 
@@ -81,7 +82,9 @@ cd server && node index.js
 cd client && npm install && npm run dev
 ```
 
-## File format
+## File format (optional)
+
+Text files are no longer required — days can be created and edited entirely through the UI or API. File watching remains active as a fallback for importing existing files or for users who prefer a text-based workflow.
 
 Two files per day, paired by date string `M-DD-YYYY` (month is **not** zero-padded):
 
@@ -90,7 +93,7 @@ Two files per day, paired by date string `M-DD-YYYY` (month is **not** zero-padd
 | `Tasklist-M-DD-YYYY.txt` | `Tasklist-7-10-2026.txt` |
 | `Report-M-DD-YYYY.md` | `Report-7-10-2026.md` |
 
-A day appears in the app as soon as either file exists. Metrics on the Trends charts require a matching Report file.
+A day appears in the app as soon as either file exists. If both files are present, metrics are extracted from the Report file and merged with the Tasklist.
 
 ### Tasklist sections
 
@@ -132,6 +135,57 @@ The parser handles multiple format generations. The current canonical format is:
 
 Older formats (bullet-list Totals, flat plan tables, numbered carry-forward lists) are also supported.
 
+## Automation
+
+Daftro exposes a REST API that external tools can use to push data directly, bypassing file parsing entirely.
+
+### Standalone (no automation)
+
+The Day Editor covers the full loop without any scheduled tasks:
+
+1. Create tomorrow's day via **+ New Day**, add priorities and a day plan
+2. Log actuals in the **EOD Review** tab during or at the end of the day
+3. The Trends page and day reports update immediately from the DB
+
+### Claude scheduled task integration (optional)
+
+If you use Claude Code scheduled tasks, wire them up to automate the loop:
+
+**End-of-day task** — reads today's day from Daftro, builds a plan-vs-actual analysis from the plan + logged actuals, writes the completed day back, and POSTs tomorrow's skeleton with carry-forwards pre-populated:
+
+```
+GET  http://localhost:3000/api/days/:date   ← read today's plan + actuals
+PUT  http://localhost:3000/api/days/:date   ← write completed day + analysis
+POST http://localhost:3000/api/days          ← create tomorrow's skeleton
+```
+
+**Morning task** — reads today's plan from Daftro and schedules Google Calendar events:
+
+```
+GET  http://localhost:3000/api/days/:date   ← use tasklist.dayPlan for calendar events
+```
+
+The full loop: EOD task creates tomorrow's skeleton → you flesh it out in the Day Editor → morning task reads it and creates calendar events → you log actuals in the Day Editor → EOD task runs again. The file-based flow (`Tasklist-*.txt` / `Report-*.md`) remains active as a fallback throughout — if Daftro is unavailable, tasks revert to reading/writing files.
+
+### API reference
+
+All dates use `M-D-YYYY` format (no leading zeros, e.g. `7-21-2026`).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET`  | `/api/days` | List all days (summary) |
+| `GET`  | `/api/days/:date` | Get a single day (full data) |
+| `POST` | `/api/days` | Create a new day (409 if exists) |
+| `PUT`  | `/api/days/:date` | Upsert a day |
+| `DELETE` | `/api/days/:date` | Delete a day |
+| `GET`  | `/api/trends/daily` | Per-day metrics from DB |
+| `GET`  | `/api/trends/weekly` | Week-aggregated metrics |
+| `GET`  | `/api/trends/monthly` | Month-aggregated metrics |
+
+### Future: server-side queue
+
+The current integration relies on the Claude scheduled task making the HTTP call directly. A natural extension would be a lightweight server-side queue — for example a Laravel-style queued job or a simple webhook receiver — so that any external system (CI pipeline, mobile app, another service) can push events to Daftro without needing direct API access. This would also allow retry logic, rate limiting, and an audit log of incoming writes without coupling the client to Daftro's uptime.
+
 ## Tech stack
 
 | Layer | Tech |
@@ -151,6 +205,7 @@ Older formats (bullet-list Totals, flat plan tables, numbered carry-forward list
 - [x] Phase 6 — Actions pipeline (GitHub Actions CI: test, lint, build on PR)
 - [x] Phase 7 — Timelog UI (replace text file editing with in-app direct input)
 - [x] Phase 8 — UI refresh (Google-esque light theme; white/grey surfaces, blue accent, card shadows)
-- [ ] Phase 9 — Trends on DB data (richer queries, week/month aggregation)
-- [ ] Phase 10 — Cowork API integration (Cowork writes structured plan/actuals directly to Daftro's API at morning and EOD; replaces file-based I/O and format-variant parsing)
-- [ ] Phase 11 — Deployment (containerised deploy to cloud; unblocked once file dependency removed in Phase 10)
+- [x] Phase 9 — Trends on DB data (richer queries, week/month aggregation; daily/weekly/monthly toggle)
+- [x] Phase 10 — Cowork API integration (EOD skill reads plan from Daftro, builds analysis, writes back as completed day, and creates next day's skeleton; morning skill reads from Daftro for calendar events; file-based flow remains as fallback throughout)
+- [ ] Phase 11 — Calendar integration (iCal feed + outbound webhook; removes Claude dependency for calendar sync)
+- [ ] Phase 12 — Deployment (containerised deploy to cloud)
