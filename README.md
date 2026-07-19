@@ -159,13 +159,15 @@ PUT  http://localhost:3000/api/days/:date   ← write completed day + analysis
 POST http://localhost:3000/api/days          ← create tomorrow's skeleton
 ```
 
-**Morning task** — reads today's plan from Daftro and schedules Google Calendar events:
+**Morning task** — reads today's plan from Daftro and provides a daily summary (priorities, flagged gaps, carry-forwards):
 
 ```
-GET  http://localhost:3000/api/days/:date   ← use tasklist.dayPlan for calendar events
+GET  http://localhost:3000/api/days/:date   ← read today's plan for summary / gap flags
 ```
 
-The full loop: EOD task creates tomorrow's skeleton → you flesh it out in the Day Editor → morning task reads it and creates calendar events → you log actuals in the Day Editor → EOD task runs again. The file-based flow (`Tasklist-*.txt` / `Report-*.md`) remains active as a fallback throughout — if Daftro is unavailable, tasks revert to reading/writing files.
+Calendar sync happens passively via the iCal feed — subscribe once in your calendar app and events appear automatically, no morning task involvement needed. See [Calendar setup](docs/calendar-setup.md).
+
+The full loop: EOD task creates tomorrow's skeleton → you flesh it out in the Day Editor → iCal feed syncs to your calendar overnight → you log actuals in the Day Editor → EOD task runs again. The file-based flow (`Tasklist-*.txt` / `Report-*.md`) remains active as a fallback throughout — if Daftro is unavailable, tasks revert to reading/writing files.
 
 ### API reference
 
@@ -181,6 +183,7 @@ All dates use `M-D-YYYY` format (no leading zeros, e.g. `7-21-2026`).
 | `GET`  | `/api/trends/daily` | Per-day metrics from DB |
 | `GET`  | `/api/trends/weekly` | Week-aggregated metrics |
 | `GET`  | `/api/trends/monthly` | Month-aggregated metrics |
+| `GET`  | `/api/calendar/feed.ics` | iCal feed — subscribe in any calendar app (see [Calendar setup](docs/calendar-setup.md)) |
 
 ### Future: server-side queue
 
@@ -207,5 +210,5 @@ The current integration relies on the Claude scheduled task making the HTTP call
 - [x] Phase 8 — UI refresh (Google-esque light theme; white/grey surfaces, blue accent, card shadows)
 - [x] Phase 9 — Trends on DB data (richer queries, week/month aggregation; daily/weekly/monthly toggle)
 - [x] Phase 10 — Cowork API integration (EOD skill reads plan from Daftro, builds analysis, writes back as completed day, and creates next day's skeleton; morning skill reads from Daftro for calendar events; file-based flow remains as fallback throughout)
-- [ ] Phase 11 — Calendar integration (iCal feed + outbound webhook; removes Claude dependency for calendar sync)
+- [x] Phase 11 — Calendar integration (live iCal feed at `/api/calendar/feed.ics`; subscribe once in any calendar app — Google Calendar, Outlook, Apple Calendar — and day plan events sync automatically; removes Claude dependency for calendar sync entirely)
 - [ ] Phase 12 — Deployment (containerised deploy to cloud)
