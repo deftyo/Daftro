@@ -61,18 +61,18 @@ function summarise(data) {
 
 function StatBox({ label, value, sub }) {
   return (
-    <div className="rounded-lg border border-brand-8 bg-brand-7 p-4">
+    <div className="rounded-lg border border-brand-8 bg-white p-4 shadow-card">
       <p className="text-xs uppercase tracking-wide text-brand-3 mb-1">{label}</p>
-      <p className="font-mono text-lg font-semibold text-white tabular-nums">{value ?? '—'}</p>
-      {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
+      <p className="font-mono text-lg font-semibold text-gray-900 tabular-nums">{value ?? '—'}</p>
+      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
     </div>
   );
 }
 
 function ChartCard({ title, subtitle, children }) {
   return (
-    <div className="rounded-lg border border-brand-8 bg-brand-7 p-5 mb-5">
-      <p className="text-sm font-medium text-gray-200 mb-0.5">{title}</p>
+    <div className="rounded-lg border border-brand-8 bg-white p-5 mb-5 shadow-card">
+      <p className="text-sm font-medium text-gray-800 mb-0.5">{title}</p>
       {subtitle && <p className="text-xs text-brand-3 mb-4">{subtitle}</p>}
       {children}
     </div>
@@ -92,7 +92,7 @@ export default function Trends() {
       .catch(e => setError(e.message));
   }, []);
 
-  if (error) return <p className="text-red-400">Failed to load: {error}</p>;
+  if (error) return <p className="text-red-600">Failed to load: {error}</p>;
   if (!days)  return <p className="text-brand-3">Loading…</p>;
 
   const data = buildChartData(days);
@@ -100,7 +100,7 @@ export default function Trends() {
   if (data.length < 2) {
     return (
       <div>
-        <h1 className="mb-4 text-2xl font-bold text-white">Trends</h1>
+        <h1 className="mb-4 text-2xl font-bold text-gray-900">Trends</h1>
         <p className="text-brand-3">Need at least 2 complete days to show trends.</p>
       </div>
     );
@@ -110,7 +110,7 @@ export default function Trends() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-white">Trends</h1>
+      <h1 className="mb-6 text-2xl font-bold text-gray-900">Trends</h1>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
         <StatBox label="Days logged"      value={stats.totalDays} />
@@ -128,7 +128,7 @@ export default function Trends() {
 
       <ChartCard
         title="Unplanned time"
-        subtitle="Minutes of unplanned work per day — amber >30 min, purple >60 min"
+        subtitle="Minutes of unplanned work per day — amber >30 min, red >60 min"
       >
         <UnplannedTime data={data} />
       </ChartCard>

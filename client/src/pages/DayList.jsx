@@ -3,14 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 
 function StatusBadge({ isComplete }) {
   return isComplete
-    ? <span className="rounded-full bg-brand-2/30 px-2 py-0.5 text-xs text-brand-1 border border-brand-2/50">Complete</span>
-    : <span className="rounded-full bg-brand-9/30 px-2 py-0.5 text-xs text-purple-300 border border-brand-9/50">Partial</span>;
+    ? <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 border border-blue-200">Complete</span>
+    : <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 border border-amber-200">Partial</span>;
 }
 
 function MetricPill({ label, value }) {
   if (value == null) return null;
   return (
-    <span className="rounded bg-brand-7 border border-brand-8 px-2 py-0.5 text-xs text-gray-300">
+    <span className="rounded bg-gray-100 border border-brand-8 px-2 py-0.5 text-xs text-gray-600">
       <span className="text-brand-3">{label} </span>{value}
     </span>
   );
@@ -23,10 +23,10 @@ function DayCard({ day }) {
   return (
     <Link
       to={`/${day.date}`}
-      className="block rounded-lg border border-brand-8 bg-brand-7 p-5 hover:border-brand-4 hover:bg-brand-6 transition-colors"
+      className="block rounded-lg border border-brand-8 bg-brand-7 p-5 hover:shadow-card-hover hover:border-gray-300 transition-all shadow-card"
     >
       <div className="flex items-center justify-between gap-4">
-        <span className="font-mono text-lg font-semibold text-white">{dateLabel}</span>
+        <span className="font-mono text-base font-semibold text-gray-900">{dateLabel}</span>
         <StatusBadge isComplete={day.isComplete} />
       </div>
 
@@ -48,13 +48,13 @@ function DayCard({ day }) {
       )}
 
       {day.gaps?.length > 0 && (
-        <p className="mt-3 text-xs text-amber-400">
+        <p className="mt-3 text-xs text-amber-600">
           ⚠ {day.gaps.length} gap{day.gaps.length !== 1 ? 's' : ''} need filling in
         </p>
       )}
 
       {(day.tasklistError || day.reportError) && (
-        <p className="mt-2 text-xs text-red-400">Parse error — check console</p>
+        <p className="mt-2 text-xs text-red-600">Parse error — check console</p>
       )}
     </Link>
   );
@@ -72,16 +72,16 @@ export default function DayList() {
       .catch(e => setError(e.message));
   }, []);
 
-  if (error) return <p className="text-red-400">Failed to load: {error}</p>;
+  if (error) return <p className="text-red-600">Failed to load: {error}</p>;
   if (!days)  return <p className="text-brand-3">Loading…</p>;
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-white">Daily Reports</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Daily Reports</h1>
         <button
           onClick={() => navigate('/new')}
-          className="rounded px-4 py-2 text-sm font-medium bg-brand-2/80 text-white hover:bg-brand-2 border border-brand-2/40 transition-colors"
+          className="rounded-md px-4 py-2 text-sm font-medium bg-brand-1 text-white hover:bg-brand-2 transition-colors shadow-sm"
         >
           + New Day
         </button>

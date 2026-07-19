@@ -1,29 +1,30 @@
 export const C = {
-  primary:   '#006466',
-  teal:      '#2dd4bf',
-  amber:     '#fbbf24',
-  danger:    '#4d194d',
-  dangerLight: '#a855f7',
-  grid:      '#312244',
-  axis:      '#065a60',
-  muted:     '#475569',
-  surface:   '#212f45',
-  border:    '#312244',
-  text:      '#e2e8f0',
-  textMuted: '#94a3b8',
+  primary:     '#1A73E8',  // Google blue
+  teal:        '#1A73E8',  // active dot highlight
+  amber:       '#F29900',  // Google amber
+  danger:      '#D93025',  // Google red
+  dangerLight: '#EA4335',  // Red lighter
+  grid:        '#E0E0E0',  // Light border
+  axis:        '#9AA0A6',  // Muted grey
+  muted:       '#9AA0A6',
+  surface:     '#FFFFFF',  // Tooltip bg
+  border:      '#E0E0E0',
+  text:        '#202124',  // Primary text
+  textMuted:   '#5F6368',  // Secondary text
 };
 
 export const TOOLTIP = {
   contentStyle: {
     background: C.surface,
     border: `1px solid ${C.border}`,
-    borderRadius: 4,
+    borderRadius: 6,
     fontSize: 12,
     color: C.text,
+    boxShadow: '0 2px 6px rgba(60,64,67,0.15)',
   },
-  labelStyle:  { color: C.teal, marginBottom: 2, fontWeight: 500 },
+  labelStyle:  { color: C.primary, marginBottom: 2, fontWeight: 500 },
   itemStyle:   { color: C.textMuted },
-  cursor:      { fill: 'rgba(0,100,102,0.07)' },
+  cursor:      { fill: 'rgba(26,115,232,0.06)' },
 };
 
 export const AXIS = {

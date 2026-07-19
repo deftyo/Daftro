@@ -7,9 +7,9 @@ import Trends from './pages/Trends';
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-brand-6 text-gray-100">
-      <header className="border-b border-brand-8 bg-brand-5 px-6 py-4 flex items-center gap-8">
-        <NavLink to="/" className="text-xl font-bold tracking-tight text-white hover:text-brand-1 transition-colors">
+    <div className="min-h-screen bg-brand-6 text-gray-900">
+      <header className="border-b border-brand-8 bg-brand-7 px-6 py-3 flex items-center gap-8 shadow-sm">
+        <NavLink to="/" className="text-xl font-bold tracking-tight text-gray-900 hover:text-brand-1 transition-colors">
           Daftro
         </NavLink>
         <nav className="flex gap-5 text-sm">
@@ -17,7 +17,9 @@ export default function App() {
             to="/"
             end
             className={({ isActive }) =>
-              isActive ? 'text-brand-1' : 'text-brand-3 hover:text-gray-200 transition-colors'
+              isActive
+                ? 'text-brand-1 font-medium border-b-2 border-brand-1 pb-0.5'
+                : 'text-brand-3 hover:text-gray-700 transition-colors'
             }
           >
             Reports
@@ -25,7 +27,9 @@ export default function App() {
           <NavLink
             to="/trends"
             className={({ isActive }) =>
-              isActive ? 'text-brand-1' : 'text-brand-3 hover:text-gray-200 transition-colors'
+              isActive
+                ? 'text-brand-1 font-medium border-b-2 border-brand-1 pb-0.5'
+                : 'text-brand-3 hover:text-gray-700 transition-colors'
             }
           >
             Trends
