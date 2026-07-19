@@ -1,13 +1,14 @@
 # Daftro
 
-Self-hosted daily retrospective dashboard. Point it at your daily work files and browse them as a visual plan-vs-actual report with trend charts — no cloud, no database, just your files.
+Self-hosted daily retrospective dashboard. Point it at your daily work files and browse them as a visual plan-vs-actual report with trend charts.
 
 ## What it does
 
 - **Reports view** — per-day plan-vs-actual, unplanned work table, carry-forward list, incident/gap flags
-- **Trends dashboard** — completion rate, unplanned time, day length, incident frequency, carry-forward count charted over time
-- **Live file watching** — drop a new file and the app picks it up automatically (polling-based for WSL↔Windows reliability)
-- Handles multiple report format generations automatically
+- **Trends dashboard** — completion rate, unplanned time, day length, incident frequency, carry-forward count charted over time with daily/weekly/monthly toggle
+- **Day editor** — create and edit days directly in the UI; no text files required
+- **Live file watching** — drop a tasklist or report file and the app picks it up automatically (polling-based for WSL↔Windows reliability)
+- **REST API** — structured JSON API for programmatic writes (see [Automation](#automation))
 
 ## Prerequisites
 
@@ -132,6 +133,48 @@ The parser handles multiple format generations. The current canonical format is:
 
 Older formats (bullet-list Totals, flat plan tables, numbered carry-forward lists) are also supported.
 
+## Automation
+
+Daftro exposes a REST API that external tools can use to push data directly, bypassing file parsing entirely.
+
+### Claude scheduled task integration (optional)
+
+If you use Claude Code scheduled tasks for daily planning, you can wire them up to push to Daftro automatically:
+
+**End-of-day task** — after generating the plan-vs-actual report, PUT the structured day data to the API and POST a carry-forward skeleton for tomorrow:
+
+```
+PUT  http://localhost:3000/api/days/:date   ← today's complete data
+POST http://localhost:3000/api/days          ← tomorrow's skeleton (carry-forwards pre-populated)
+```
+
+**Morning task** — instead of reading the `.txt` file, GET today's plan from Daftro:
+
+```
+GET  http://localhost:3000/api/days/:date   ← use tasklist.dayPlan for calendar events
+```
+
+This makes Daftro the source of truth: the EOD task writes the plan for tomorrow, you flesh it out in the Day Editor UI overnight, and the morning task reads it back to schedule Google Calendar events. The file-based flow remains active as a fallback — if Daftro is unavailable the tasks revert to reading/writing `.txt`/`.md` files as before.
+
+### API reference
+
+All dates use `M-D-YYYY` format (no leading zeros, e.g. `7-21-2026`).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET`  | `/api/days` | List all days (summary) |
+| `GET`  | `/api/days/:date` | Get a single day (full data) |
+| `POST` | `/api/days` | Create a new day (409 if exists) |
+| `PUT`  | `/api/days/:date` | Upsert a day |
+| `DELETE` | `/api/days/:date` | Delete a day |
+| `GET`  | `/api/trends/daily` | Per-day metrics from DB |
+| `GET`  | `/api/trends/weekly` | Week-aggregated metrics |
+| `GET`  | `/api/trends/monthly` | Month-aggregated metrics |
+
+### Future: server-side queue
+
+The current integration relies on the Claude scheduled task making the HTTP call directly. A natural extension would be a lightweight server-side queue — for example a Laravel-style queued job or a simple webhook receiver — so that any external system (CI pipeline, mobile app, another service) can push events to Daftro without needing direct API access. This would also allow retry logic, rate limiting, and an audit log of incoming writes without coupling the client to Daftro's uptime.
+
 ## Tech stack
 
 | Layer | Tech |
@@ -151,6 +194,6 @@ Older formats (bullet-list Totals, flat plan tables, numbered carry-forward list
 - [x] Phase 6 — Actions pipeline (GitHub Actions CI: test, lint, build on PR)
 - [x] Phase 7 — Timelog UI (replace text file editing with in-app direct input)
 - [x] Phase 8 — UI refresh (Google-esque light theme; white/grey surfaces, blue accent, card shadows)
-- [ ] Phase 9 — Trends on DB data (richer queries, week/month aggregation)
-- [ ] Phase 10 — Cowork API integration (Cowork writes structured plan/actuals directly to Daftro's API at morning and EOD; replaces file-based I/O and format-variant parsing)
-- [ ] Phase 11 — Deployment (containerised deploy to cloud; unblocked once file dependency removed in Phase 10)
+- [x] Phase 9 — Trends on DB data (richer queries, week/month aggregation; daily/weekly/monthly toggle)
+- [x] Phase 10 — Cowork API integration (Claude scheduled tasks push structured data to Daftro's API; morning task reads plan from Daftro; file-based flow remains as fallback)
+- [ ] Phase 11 — Deployment (containerised deploy to cloud)
