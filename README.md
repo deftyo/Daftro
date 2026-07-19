@@ -1,6 +1,6 @@
 # Daftro
 
-Self-hosted daily retrospective dashboard. Point it at your daily work files and browse them as a visual plan-vs-actual report with trend charts.
+Self-hosted daily retrospective dashboard. Plan your day, log actuals, and review trends — entirely through the UI or automated via the REST API. Text file import is supported as an optional fallback.
 
 ## What it does
 
@@ -82,7 +82,9 @@ cd server && node index.js
 cd client && npm install && npm run dev
 ```
 
-## File format
+## File format (optional)
+
+Text files are no longer required — days can be created and edited entirely through the UI or API. File watching remains active as a fallback for importing existing files or for users who prefer a text-based workflow.
 
 Two files per day, paired by date string `M-DD-YYYY` (month is **not** zero-padded):
 
@@ -91,7 +93,7 @@ Two files per day, paired by date string `M-DD-YYYY` (month is **not** zero-padd
 | `Tasklist-M-DD-YYYY.txt` | `Tasklist-7-10-2026.txt` |
 | `Report-M-DD-YYYY.md` | `Report-7-10-2026.md` |
 
-A day appears in the app as soon as either file exists. Metrics on the Trends charts require a matching Report file.
+A day appears in the app as soon as either file exists. If both files are present, metrics are extracted from the Report file and merged with the Tasklist.
 
 ### Tasklist sections
 
