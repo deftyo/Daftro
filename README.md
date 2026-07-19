@@ -137,24 +137,33 @@ Older formats (bullet-list Totals, flat plan tables, numbered carry-forward list
 
 Daftro exposes a REST API that external tools can use to push data directly, bypassing file parsing entirely.
 
+### Standalone (no automation)
+
+The Day Editor covers the full loop without any scheduled tasks:
+
+1. Create tomorrow's day via **+ New Day**, add priorities and a day plan
+2. Log actuals in the **EOD Review** tab during or at the end of the day
+3. The Trends page and day reports update immediately from the DB
+
 ### Claude scheduled task integration (optional)
 
-If you use Claude Code scheduled tasks for daily planning, you can wire them up to push to Daftro automatically:
+If you use Claude Code scheduled tasks, wire them up to automate the loop:
 
-**End-of-day task** — after generating the plan-vs-actual report, PUT the structured day data to the API and POST a carry-forward skeleton for tomorrow:
+**End-of-day task** — reads today's day from Daftro, builds a plan-vs-actual analysis from the plan + logged actuals, writes the completed day back, and POSTs tomorrow's skeleton with carry-forwards pre-populated:
 
 ```
-PUT  http://localhost:3000/api/days/:date   ← today's complete data
-POST http://localhost:3000/api/days          ← tomorrow's skeleton (carry-forwards pre-populated)
+GET  http://localhost:3000/api/days/:date   ← read today's plan + actuals
+PUT  http://localhost:3000/api/days/:date   ← write completed day + analysis
+POST http://localhost:3000/api/days          ← create tomorrow's skeleton
 ```
 
-**Morning task** — instead of reading the `.txt` file, GET today's plan from Daftro:
+**Morning task** — reads today's plan from Daftro and schedules Google Calendar events:
 
 ```
 GET  http://localhost:3000/api/days/:date   ← use tasklist.dayPlan for calendar events
 ```
 
-This makes Daftro the source of truth: the EOD task writes the plan for tomorrow, you flesh it out in the Day Editor UI overnight, and the morning task reads it back to schedule Google Calendar events. The file-based flow remains active as a fallback — if Daftro is unavailable the tasks revert to reading/writing `.txt`/`.md` files as before.
+The full loop: EOD task creates tomorrow's skeleton → you flesh it out in the Day Editor → morning task reads it and creates calendar events → you log actuals in the Day Editor → EOD task runs again. The file-based flow (`Tasklist-*.txt` / `Report-*.md`) remains active as a fallback throughout — if Daftro is unavailable, tasks revert to reading/writing files.
 
 ### API reference
 
@@ -195,5 +204,5 @@ The current integration relies on the Claude scheduled task making the HTTP call
 - [x] Phase 7 — Timelog UI (replace text file editing with in-app direct input)
 - [x] Phase 8 — UI refresh (Google-esque light theme; white/grey surfaces, blue accent, card shadows)
 - [x] Phase 9 — Trends on DB data (richer queries, week/month aggregation; daily/weekly/monthly toggle)
-- [x] Phase 10 — Cowork API integration (Claude scheduled tasks push structured data to Daftro's API; morning task reads plan from Daftro; file-based flow remains as fallback)
+- [x] Phase 10 — Cowork API integration (EOD skill reads plan from Daftro, builds analysis, writes back as completed day, and creates next day's skeleton; morning skill reads from Daftro for calendar events; file-based flow remains as fallback throughout)
 - [ ] Phase 11 — Deployment (containerised deploy to cloud)
