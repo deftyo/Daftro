@@ -100,6 +100,7 @@ function PlanEditor({ blocks, onChange }) {
         <div key={i} className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
           <input
             type="time"
+            step="300"
             value={b.start}
             onChange={e => update(i, 'start', e.target.value)}
             className={timeCls}
@@ -107,6 +108,7 @@ function PlanEditor({ blocks, onChange }) {
           <span className="text-brand-3 text-sm shrink-0">–</span>
           <input
             type="time"
+            step="300"
             value={b.end}
             onChange={e => update(i, 'end', e.target.value)}
             className={timeCls}
@@ -149,6 +151,7 @@ function UnplannedEditor({ rows, onChange }) {
         <div key={i} className="grid gap-2 items-center" style={{ gridTemplateColumns: '7rem 1fr 6rem 8rem auto' }}>
           <input
             type="time"
+            step="300"
             value={r.time}
             onChange={e => update(i, 'time', e.target.value)}
             className={timeCls}
@@ -239,11 +242,11 @@ function ReviewTab({ data, onChange }) {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div>
           <SectionLabel>Day start</SectionLabel>
-          <input type="time" value={data.dayStart} onChange={e => set('dayStart', e.target.value)} className={timeCls} />
+          <input type="time" step="300" value={data.dayStart} onChange={e => set('dayStart', e.target.value)} className={timeCls} />
         </div>
         <div>
           <SectionLabel>Day end</SectionLabel>
-          <input type="time" value={data.dayEnd} onChange={e => set('dayEnd', e.target.value)} className={timeCls} />
+          <input type="time" step="300" value={data.dayEnd} onChange={e => set('dayEnd', e.target.value)} className={timeCls} />
         </div>
         <div>
           <SectionLabel>Planned done</SectionLabel>
