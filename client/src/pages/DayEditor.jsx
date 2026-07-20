@@ -18,6 +18,28 @@ function todayHtml() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// ── Utilities ─────────────────────────────────────────────────────────────────
+
+function snap5(time) {
+  if (!time) return time;
+  const [h, m] = time.split(':').map(Number);
+  const snapped = Math.round(m / 5) * 5;
+  if (snapped >= 60) return `${String(h + 1).padStart(2, '0')}:00`;
+  return `${String(h).padStart(2, '0')}:${String(snapped).padStart(2, '0')}`;
+}
+
+function TimeInput({ value, onChange, className }) {
+  return (
+    <input
+      type="time"
+      step="300"
+      value={value}
+      onChange={e => onChange(snap5(e.target.value))}
+      className={className}
+    />
+  );
+}
+
 // ── Shared input styles ───────────────────────────────────────────────────────
 
 const inputCls = 'bg-white border border-brand-8 text-gray-900 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-1/20 focus:border-brand-1 placeholder-gray-400 w-full';
@@ -98,21 +120,9 @@ function PlanEditor({ blocks, onChange }) {
     <div className="flex flex-col gap-2">
       {blocks.map((b, i) => (
         <div key={i} className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
-          <input
-            type="time"
-            step="300"
-            value={b.start}
-            onChange={e => update(i, 'start', e.target.value)}
-            className={timeCls}
-          />
+          <TimeInput value={b.start} onChange={v => update(i, 'start', v)} className={timeCls} />
           <span className="text-brand-3 text-sm shrink-0">–</span>
-          <input
-            type="time"
-            step="300"
-            value={b.end}
-            onChange={e => update(i, 'end', e.target.value)}
-            className={timeCls}
-          />
+          <TimeInput value={b.end}   onChange={v => update(i, 'end',   v)} className={timeCls} />
           <input
             value={b.description}
             onChange={e => update(i, 'description', e.target.value)}
@@ -149,13 +159,7 @@ function UnplannedEditor({ rows, onChange }) {
     <div className="flex flex-col gap-2">
       {rows.map((r, i) => (
         <div key={i} className="grid gap-2 items-center" style={{ gridTemplateColumns: '7rem 1fr 6rem 8rem auto' }}>
-          <input
-            type="time"
-            step="300"
-            value={r.time}
-            onChange={e => update(i, 'time', e.target.value)}
-            className={timeCls}
-          />
+          <TimeInput value={r.time} onChange={v => update(i, 'time', v)} className={timeCls} />
           <input
             value={r.item}
             onChange={e => update(i, 'item', e.target.value)}
@@ -236,23 +240,11 @@ function PlanVsActualEditor({ planItems, pva, onChange }) {
             <div className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
               <div className="flex items-center gap-1 shrink-0">
                 <span className="text-xs text-brand-3 w-10">Start</span>
-                <input
-                  type="time"
-                  step="300"
-                  value={ann.actualStart ?? ''}
-                  onChange={e => update(b.description, 'actualStart', e.target.value)}
-                  className={timeCls}
-                />
+                <TimeInput value={ann.actualStart ?? ''} onChange={v => update(b.description, 'actualStart', v)} className={timeCls} />
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <span className="text-xs text-brand-3 w-8">End</span>
-                <input
-                  type="time"
-                  step="300"
-                  value={ann.actualEnd ?? ''}
-                  onChange={e => update(b.description, 'actualEnd', e.target.value)}
-                  className={timeCls}
-                />
+                <TimeInput value={ann.actualEnd ?? ''} onChange={v => update(b.description, 'actualEnd', v)} className={timeCls} />
               </div>
               <input
                 value={ann.notes ?? ''}
@@ -333,11 +325,11 @@ function ReviewTab({ data, onChange, planItems = [] }) {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div>
           <SectionLabel>Day start</SectionLabel>
-          <input type="time" step="300" value={data.dayStart} onChange={e => set('dayStart', e.target.value)} className={timeCls} />
+          <TimeInput value={data.dayStart} onChange={v => set('dayStart', v)} className={timeCls} />
         </div>
         <div>
           <SectionLabel>Day end</SectionLabel>
-          <input type="time" step="300" value={data.dayEnd} onChange={e => set('dayEnd', e.target.value)} className={timeCls} />
+          <TimeInput value={data.dayEnd} onChange={v => set('dayEnd', v)} className={timeCls} />
         </div>
         <div>
           <SectionLabel>Planned done</SectionLabel>
