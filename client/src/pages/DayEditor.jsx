@@ -531,10 +531,11 @@ function formsToPayload(dateStr, plan, review, isComplete) {
     };
   });
 
-  // Derive counts from pva statuses; fall back to manual fields
-  const pvaStatused    = planVsActual.filter(p => p.statusIndicator);
-  const derivedTotal   = pvaStatused.length ? timedItems.length : null;
-  const derivedDone    = pvaStatused.length ? planVsActual.filter(p => p.statusIndicator === 'done').length : null;
+  // When any pva status is set, derive counts from statuses (always wins over manual fields)
+  const pvaStatused  = planVsActual.filter(p => p.statusIndicator);
+  const useDerivation = pvaStatused.length > 0;
+  const derivedTotal  = timedItems.length;
+  const derivedDone   = planVsActual.filter(p => p.statusIndicator === 'done').length;
 
   const tasklist = {
     source:        'direct',
@@ -550,8 +551,8 @@ function formsToPayload(dateStr, plan, review, isComplete) {
     metrics: {
       dayStart:         review.dayStart || null,
       dayEnd:           review.dayEnd   || null,
-      plannedCompleted: num(review.plannedCompleted) ?? derivedDone,
-      plannedTotal:     num(review.plannedTotal)     ?? derivedTotal,
+      plannedCompleted: useDerivation ? derivedDone  : (num(review.plannedCompleted) ?? null),
+      plannedTotal:     useDerivation ? derivedTotal : (num(review.plannedTotal)     ?? null),
       unplannedMinutes: unplannedMinutes || null,
       incidentCount:    num(review.incidentCount),
       gapCount:         0,
