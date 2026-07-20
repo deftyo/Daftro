@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
 import DayList from './pages/DayList';
-import DayDetail from './pages/DayDetail';
-import DayEditor from './pages/DayEditor';
+import DayPage from './pages/DayPage';
+import NewDay from './pages/NewDay';
 import Trends from './pages/Trends';
 
 const BANNER_KEY = 'daftro_ical_dismissed';
@@ -91,10 +91,9 @@ export default function App() {
       <main className="mx-auto max-w-4xl px-6 py-8">
         <Routes>
           <Route path="/" element={<DayList />} />
-          <Route path="/new" element={<DayEditor />} />
+          <Route path="/new" element={<NewDay />} />
           <Route path="/trends" element={<Trends />} />
-          <Route path="/:date/edit" element={<DayEditor />} />
-          <Route path="/:date" element={<DayDetail />} />
+          <Route path="/:date" element={<DayPage />} />
         </Routes>
       </main>
     </div>
