@@ -233,15 +233,27 @@ function PlanVsActualEditor({ planItems, pva, onChange }) {
                 {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
-            <div className="flex gap-2 items-center">
-              <input
-                type="time"
-                step="300"
-                value={ann.actualTime ?? ''}
-                onChange={e => update(b.description, 'actualTime', e.target.value)}
-                title="Actual end time"
-                className={timeCls}
-              />
+            <div className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-xs text-brand-3 w-10">Start</span>
+                <input
+                  type="time"
+                  step="300"
+                  value={ann.actualStart ?? ''}
+                  onChange={e => update(b.description, 'actualStart', e.target.value)}
+                  className={timeCls}
+                />
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-xs text-brand-3 w-8">End</span>
+                <input
+                  type="time"
+                  step="300"
+                  value={ann.actualEnd ?? ''}
+                  onChange={e => update(b.description, 'actualEnd', e.target.value)}
+                  className={timeCls}
+                />
+              </div>
               <input
                 value={ann.notes ?? ''}
                 onChange={e => update(b.description, 'notes', e.target.value)}
@@ -476,8 +488,9 @@ function dayToForms(day) {
       if (Array.isArray(rp.planVsActual)) {
         rp.planVsActual.forEach(e => {
           if (e.heading) map[e.heading] = {
-            actualTime: e.actual ?? '',
-            status:     e.statusIndicator ?? '',
+            actualStart: e.actualStart ?? '',
+            actualEnd:   e.actualEnd   ?? '',
+            status:      e.statusIndicator ?? '',
             notes:      Array.isArray(e.notes) ? e.notes.join('\n') : (e.notes ?? ''),
           };
         });
@@ -511,8 +524,9 @@ function formsToPayload(dateStr, plan, review, isComplete) {
     return {
       heading:         b.description,
       planned:         b.start && b.end ? `${b.start}–${b.end}` : '',
-      actual:          ann.actualTime || null,
-      statusIndicator: ann.status     || null,
+      actualStart:     ann.actualStart || null,
+      actualEnd:       ann.actualEnd   || null,
+      statusIndicator: ann.status      || null,
       notes:           ann.notes ? [ann.notes] : [],
     };
   });
