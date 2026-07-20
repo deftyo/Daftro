@@ -187,6 +187,75 @@ function UnplannedEditor({ rows, onChange }) {
   );
 }
 
+// Plan-vs-actual annotation rows (one per planned block)
+const STATUS_OPTS = [
+  { value: '',        label: '—' },
+  { value: 'done',    label: 'Done' },
+  { value: 'warning', label: 'Partial' },
+  { value: 'missed',  label: 'Missed' },
+];
+
+const STATUS_COLOURS = {
+  done:    'border-l-green-400',
+  warning: 'border-l-amber-400',
+  missed:  'border-l-red-400',
+};
+
+function PlanVsActualEditor({ planItems, pva, onChange }) {
+  const timed = planItems.filter(b => !b.open && b.description);
+
+  if (!timed.length) {
+    return <p className="text-sm text-brand-3">No planned items — add them in Morning Plan first.</p>;
+  }
+
+  const update = (description, field, val) =>
+    onChange({ ...pva, [description]: { ...(pva[description] ?? {}), [field]: val } });
+
+  return (
+    <div className="flex flex-col gap-2">
+      {timed.map((b, i) => {
+        const ann    = pva[b.description] ?? {};
+        const colour = STATUS_COLOURS[ann.status] ?? 'border-l-brand-8';
+        return (
+          <div key={i} className={`rounded-lg border border-brand-8 border-l-4 ${colour} bg-gray-50 px-3 py-2`}>
+            <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+              <div>
+                <p className="text-sm font-medium text-gray-900">{b.description}</p>
+                {b.start && b.end && (
+                  <p className="text-xs font-mono text-brand-3">{b.start}–{b.end}</p>
+                )}
+              </div>
+              <select
+                value={ann.status ?? ''}
+                onChange={e => update(b.description, 'status', e.target.value)}
+                className="rounded border border-brand-8 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none focus:border-brand-1"
+              >
+                {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div className="flex gap-2 items-center">
+              <input
+                type="time"
+                step="300"
+                value={ann.actualTime ?? ''}
+                onChange={e => update(b.description, 'actualTime', e.target.value)}
+                title="Actual end time"
+                className={timeCls}
+              />
+              <input
+                value={ann.notes ?? ''}
+                onChange={e => update(b.description, 'notes', e.target.value)}
+                placeholder="Notes…"
+                className={`${inputCls} flex-1`}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Tab: Plan ─────────────────────────────────────────────────────────────────
 
 function PlanTab({ data, onChange }) {
@@ -233,12 +302,22 @@ function PlanTab({ data, onChange }) {
 
 // ── Tab: Review ───────────────────────────────────────────────────────────────
 
-function ReviewTab({ data, onChange }) {
+function ReviewTab({ data, onChange, planItems = [] }) {
   const set = (field, val) => onChange({ ...data, [field]: val });
   const setCf = (field, val) => onChange({ ...data, carryForward: { ...data.carryForward, [field]: val } });
 
   return (
     <div className="flex flex-col gap-8">
+
+      <div>
+        <SectionLabel>Plan vs actual</SectionLabel>
+        <PlanVsActualEditor
+          planItems={planItems}
+          pva={data.planVsActual}
+          onChange={v => set('planVsActual', v)}
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div>
           <SectionLabel>Day start</SectionLabel>
@@ -348,6 +427,7 @@ function emptyReview() {
   return {
     dayStart: '', dayEnd: '',
     plannedCompleted: '', plannedTotal: '',
+    planVsActual: {},
     unplanned: [],
     completed: [],
     carryForward: { blocked: [], planned: [], watch: [] },
@@ -391,6 +471,19 @@ function dayToForms(day) {
       duration: r.duration ?? '',
       tag:      r.tag      ?? '',
     })),
+    planVsActual: (() => {
+      const map = {};
+      if (Array.isArray(rp.planVsActual)) {
+        rp.planVsActual.forEach(e => {
+          if (e.heading) map[e.heading] = {
+            actualTime: e.actual ?? '',
+            status:     e.statusIndicator ?? '',
+            notes:      Array.isArray(e.notes) ? e.notes.join('\n') : (e.notes ?? ''),
+          };
+        });
+      }
+      return map;
+    })(),
     completed: Array.isArray(rp.completedWork) ? rp.completedWork : [],
     carryForward: {
       blocked: Array.isArray(rp.carryForward?.blocked) ? rp.carryForward.blocked.map(x => x.item ?? x) : [],
@@ -412,6 +505,23 @@ function formsToPayload(dateStr, plan, review, isComplete) {
     return acc + (isNaN(m) ? 0 : m);
   }, 0);
 
+  const timedItems = plan.plan.filter(b => !b.open && b.description);
+  const planVsActual = timedItems.map(b => {
+    const ann = review.planVsActual?.[b.description] ?? {};
+    return {
+      heading:         b.description,
+      planned:         b.start && b.end ? `${b.start}–${b.end}` : '',
+      actual:          ann.actualTime || null,
+      statusIndicator: ann.status     || null,
+      notes:           ann.notes ? [ann.notes] : [],
+    };
+  });
+
+  // Derive counts from pva statuses; fall back to manual fields
+  const pvaStatused    = planVsActual.filter(p => p.statusIndicator);
+  const derivedTotal   = pvaStatused.length ? timedItems.length : null;
+  const derivedDone    = pvaStatused.length ? planVsActual.filter(p => p.statusIndicator === 'done').length : null;
+
   const tasklist = {
     source:        'direct',
     priorities:    plan.priorities.filter(Boolean),
@@ -424,14 +534,15 @@ function formsToPayload(dateStr, plan, review, isComplete) {
     source: 'direct',
     title:  `End-of-Day Review — ${dateStr}`,
     metrics: {
-      dayStart:         review.dayStart         || null,
-      dayEnd:           review.dayEnd           || null,
-      plannedCompleted: num(review.plannedCompleted),
-      plannedTotal:     num(review.plannedTotal),
+      dayStart:         review.dayStart || null,
+      dayEnd:           review.dayEnd   || null,
+      plannedCompleted: num(review.plannedCompleted) ?? derivedDone,
+      plannedTotal:     num(review.plannedTotal)     ?? derivedTotal,
       unplannedMinutes: unplannedMinutes || null,
       incidentCount:    num(review.incidentCount),
       gapCount:         0,
     },
+    planVsActual,
     unplannedWork: review.unplanned.filter(r => r.item),
     completedWork: review.completed.filter(Boolean),
     carryForward: {
@@ -601,7 +712,7 @@ export default function DayEditor() {
 
       {activeTab === 'plan'
         ? <PlanTab   data={plan}   onChange={setPlan}   />
-        : <ReviewTab data={review} onChange={setReview} />
+        : <ReviewTab data={review} onChange={setReview} planItems={plan.plan} />
       }
 
       {/* Save again at the bottom */}
