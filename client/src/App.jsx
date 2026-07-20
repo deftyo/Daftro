@@ -59,8 +59,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-brand-6 text-gray-900">
       <header className="border-b border-brand-8 bg-brand-7 px-6 py-3 flex items-center gap-8 shadow-sm">
-        <NavLink to="/" className="text-xl font-bold tracking-tight text-gray-900 hover:text-brand-1 transition-colors">
-          Daftro
+        <NavLink to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <img src="/icon.png" alt="Daftro" className="h-7 w-7 object-contain" />
+          <span className="text-xl font-bold tracking-tight text-gray-900">Daftro</span>
         </NavLink>
         <nav className="flex gap-5 text-sm">
           <NavLink
