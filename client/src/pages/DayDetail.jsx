@@ -40,10 +40,18 @@ function MetricBox({ label, value, sub }) {
   );
 }
 
-function MetricsBar({ metrics }) {
+function MetricsBar({ metrics, planVsActual }) {
   if (!metrics) return null;
-  const { dayStart, dayEnd, unplannedMinutes, unplannedPercent,
-          plannedCompleted, plannedTotal, incidentCount, gapCount } = metrics;
+  const { dayStart, dayEnd, unplannedMinutes, unplannedPercent, incidentCount, gapCount } = metrics;
+
+  // Derive planned counts from pva statuses when available
+  const pvaWithStatus = (planVsActual ?? []).filter(b => b.statusIndicator);
+  const plannedCompleted = pvaWithStatus.length > 0
+    ? (planVsActual ?? []).filter(b => b.statusIndicator === 'done').length
+    : metrics.plannedCompleted;
+  const plannedTotal = pvaWithStatus.length > 0
+    ? (planVsActual ?? []).length
+    : metrics.plannedTotal;
 
   return (
     <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -78,9 +86,14 @@ function indicatorPill(si) {
 
 function PlanVsActual({ blocks }) {
   if (!blocks?.length) return <p className="text-brand-3 text-sm">No data.</p>;
+  const sorted = [...blocks].sort((a, b) => {
+    const aTime = a.actualStart || a.planned?.split('–')[0] || '';
+    const bTime = b.actualStart || b.planned?.split('–')[0] || '';
+    return aTime.localeCompare(bTime);
+  });
   return (
     <div className="flex flex-col gap-3">
-      {blocks.map((b, i) => (
+      {sorted.map((b, i) => (
         <div key={i} className="rounded-lg border border-brand-8 bg-brand-7 p-4 shadow-card">
           <div className="flex items-start justify-between gap-3">
             <p className="font-medium text-sm text-gray-800">{b.heading}</p>
@@ -88,7 +101,14 @@ function PlanVsActual({ blocks }) {
           </div>
           <div className="mt-2 grid grid-cols-2 gap-x-4 text-xs text-gray-500">
             {b.planned && <p><span className="text-brand-3">Planned </span>{b.planned}</p>}
-            {b.actual  && <p><span className="text-brand-3">Actual </span>{b.actual}</p>}
+            {(b.actualStart || b.actualEnd || b.actual) && (
+              <p>
+                <span className="text-brand-3">Actual </span>
+                {b.actualStart || b.actualEnd
+                  ? [b.actualStart, b.actualEnd].filter(Boolean).join('–')
+                  : b.actual}
+              </p>
+            )}
           </div>
           {b.notes?.length > 0 && (
             <ul className="mt-2 list-disc list-inside text-xs text-amber-600 space-y-0.5">
@@ -261,7 +281,7 @@ export default function DayDetail() {
       </h1>
 
       <GapsAlert gaps={gaps} />
-      <MetricsBar metrics={rp?.metrics} />
+      <MetricsBar metrics={rp?.metrics} planVsActual={rp?.planVsActual} />
 
       {tl?.priorities?.length > 0 && (
         <Section title="Priorities">

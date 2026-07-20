@@ -18,6 +18,28 @@ function todayHtml() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// ── Utilities ─────────────────────────────────────────────────────────────────
+
+function snap5(time) {
+  if (!time) return time;
+  const [h, m] = time.split(':').map(Number);
+  const snapped = Math.round(m / 5) * 5;
+  if (snapped >= 60) return `${String(h + 1).padStart(2, '0')}:00`;
+  return `${String(h).padStart(2, '0')}:${String(snapped).padStart(2, '0')}`;
+}
+
+function TimeInput({ value, onChange, className }) {
+  return (
+    <input
+      type="time"
+      step="300"
+      value={value}
+      onChange={e => onChange(snap5(e.target.value))}
+      className={className}
+    />
+  );
+}
+
 // ── Shared input styles ───────────────────────────────────────────────────────
 
 const inputCls = 'bg-white border border-brand-8 text-gray-900 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-1/20 focus:border-brand-1 placeholder-gray-400 w-full';
@@ -98,19 +120,9 @@ function PlanEditor({ blocks, onChange }) {
     <div className="flex flex-col gap-2">
       {blocks.map((b, i) => (
         <div key={i} className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
-          <input
-            type="time"
-            value={b.start}
-            onChange={e => update(i, 'start', e.target.value)}
-            className={timeCls}
-          />
+          <TimeInput value={b.start} onChange={v => update(i, 'start', v)} className={timeCls} />
           <span className="text-brand-3 text-sm shrink-0">–</span>
-          <input
-            type="time"
-            value={b.end}
-            onChange={e => update(i, 'end', e.target.value)}
-            className={timeCls}
-          />
+          <TimeInput value={b.end}   onChange={v => update(i, 'end',   v)} className={timeCls} />
           <input
             value={b.description}
             onChange={e => update(i, 'description', e.target.value)}
@@ -147,12 +159,7 @@ function UnplannedEditor({ rows, onChange }) {
     <div className="flex flex-col gap-2">
       {rows.map((r, i) => (
         <div key={i} className="grid gap-2 items-center" style={{ gridTemplateColumns: '7rem 1fr 6rem 8rem auto' }}>
-          <input
-            type="time"
-            value={r.time}
-            onChange={e => update(i, 'time', e.target.value)}
-            className={timeCls}
-          />
+          <TimeInput value={r.time} onChange={v => update(i, 'time', v)} className={timeCls} />
           <input
             value={r.item}
             onChange={e => update(i, 'item', e.target.value)}
@@ -180,6 +187,79 @@ function UnplannedEditor({ rows, onChange }) {
         </div>
       ))}
       <AddButton onClick={add} label="Add row" />
+    </div>
+  );
+}
+
+// Plan-vs-actual annotation rows (one per planned block)
+const STATUS_OPTS = [
+  { value: '',        label: '—' },
+  { value: 'done',    label: 'Done' },
+  { value: 'warning', label: 'Partial' },
+  { value: 'missed',  label: 'Missed' },
+];
+
+const STATUS_COLOURS = {
+  done:    'border-l-green-400',
+  warning: 'border-l-amber-400',
+  missed:  'border-l-red-400',
+};
+
+function PlanVsActualEditor({ planItems, pva, onChange }) {
+  const timed = [...planItems.filter(b => !b.open && b.description)].sort((a, b) => {
+    const aTime = (pva[a.description]?.actualStart) || a.start || '';
+    const bTime = (pva[b.description]?.actualStart) || b.start || '';
+    return aTime.localeCompare(bTime);
+  });
+
+  if (!timed.length) {
+    return <p className="text-sm text-brand-3">No planned items — add them in Morning Plan first.</p>;
+  }
+
+  const update = (description, field, val) =>
+    onChange({ ...pva, [description]: { ...(pva[description] ?? {}), [field]: val } });
+
+  return (
+    <div className="flex flex-col gap-2">
+      {timed.map((b, i) => {
+        const ann    = pva[b.description] ?? {};
+        const colour = STATUS_COLOURS[ann.status] ?? 'border-l-brand-8';
+        return (
+          <div key={i} className={`rounded-lg border border-brand-8 border-l-4 ${colour} bg-gray-50 px-3 py-2`}>
+            <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+              <div>
+                <p className="text-sm font-medium text-gray-900">{b.description}</p>
+                {b.start && b.end && (
+                  <p className="text-xs font-mono text-brand-3">{b.start}–{b.end}</p>
+                )}
+              </div>
+              <select
+                value={ann.status ?? ''}
+                onChange={e => update(b.description, 'status', e.target.value)}
+                className="rounded border border-brand-8 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none focus:border-brand-1"
+              >
+                {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-xs text-brand-3 w-10">Start</span>
+                <TimeInput value={ann.actualStart ?? ''} onChange={v => update(b.description, 'actualStart', v)} className={timeCls} />
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-xs text-brand-3 w-8">End</span>
+                <TimeInput value={ann.actualEnd ?? ''} onChange={v => update(b.description, 'actualEnd', v)} className={timeCls} />
+              </div>
+              <input
+                value={ann.notes ?? ''}
+                onChange={e => update(b.description, 'notes', e.target.value)}
+                placeholder="Notes…"
+                className={`${inputCls} flex-1`}
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -230,20 +310,30 @@ function PlanTab({ data, onChange }) {
 
 // ── Tab: Review ───────────────────────────────────────────────────────────────
 
-function ReviewTab({ data, onChange }) {
+function ReviewTab({ data, onChange, planItems = [] }) {
   const set = (field, val) => onChange({ ...data, [field]: val });
   const setCf = (field, val) => onChange({ ...data, carryForward: { ...data.carryForward, [field]: val } });
 
   return (
     <div className="flex flex-col gap-8">
+
+      <div>
+        <SectionLabel>Plan vs actual</SectionLabel>
+        <PlanVsActualEditor
+          planItems={planItems}
+          pva={data.planVsActual}
+          onChange={v => set('planVsActual', v)}
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div>
           <SectionLabel>Day start</SectionLabel>
-          <input type="time" value={data.dayStart} onChange={e => set('dayStart', e.target.value)} className={timeCls} />
+          <TimeInput value={data.dayStart} onChange={v => set('dayStart', v)} className={timeCls} />
         </div>
         <div>
           <SectionLabel>Day end</SectionLabel>
-          <input type="time" value={data.dayEnd} onChange={e => set('dayEnd', e.target.value)} className={timeCls} />
+          <TimeInput value={data.dayEnd} onChange={v => set('dayEnd', v)} className={timeCls} />
         </div>
         <div>
           <SectionLabel>Planned done</SectionLabel>
@@ -345,6 +435,7 @@ function emptyReview() {
   return {
     dayStart: '', dayEnd: '',
     plannedCompleted: '', plannedTotal: '',
+    planVsActual: {},
     unplanned: [],
     completed: [],
     carryForward: { blocked: [], planned: [], watch: [] },
@@ -388,6 +479,20 @@ function dayToForms(day) {
       duration: r.duration ?? '',
       tag:      r.tag      ?? '',
     })),
+    planVsActual: (() => {
+      const map = {};
+      if (Array.isArray(rp.planVsActual)) {
+        rp.planVsActual.forEach(e => {
+          if (e.heading) map[e.heading] = {
+            actualStart: e.actualStart ?? '',
+            actualEnd:   e.actualEnd   ?? '',
+            status:      e.statusIndicator ?? '',
+            notes:      Array.isArray(e.notes) ? e.notes.join('\n') : (e.notes ?? ''),
+          };
+        });
+      }
+      return map;
+    })(),
     completed: Array.isArray(rp.completedWork) ? rp.completedWork : [],
     carryForward: {
       blocked: Array.isArray(rp.carryForward?.blocked) ? rp.carryForward.blocked.map(x => x.item ?? x) : [],
@@ -409,6 +514,25 @@ function formsToPayload(dateStr, plan, review, isComplete) {
     return acc + (isNaN(m) ? 0 : m);
   }, 0);
 
+  const timedItems = plan.plan.filter(b => !b.open && b.description);
+  const planVsActual = timedItems.map(b => {
+    const ann = review.planVsActual?.[b.description] ?? {};
+    return {
+      heading:         b.description,
+      planned:         b.start && b.end ? `${b.start}–${b.end}` : '',
+      actualStart:     ann.actualStart || null,
+      actualEnd:       ann.actualEnd   || null,
+      statusIndicator: ann.status      || null,
+      notes:           ann.notes ? [ann.notes] : [],
+    };
+  });
+
+  // When any pva status is set, derive counts from statuses (always wins over manual fields)
+  const pvaStatused  = planVsActual.filter(p => p.statusIndicator);
+  const useDerivation = pvaStatused.length > 0;
+  const derivedTotal  = timedItems.length;
+  const derivedDone   = planVsActual.filter(p => p.statusIndicator === 'done').length;
+
   const tasklist = {
     source:        'direct',
     priorities:    plan.priorities.filter(Boolean),
@@ -421,14 +545,15 @@ function formsToPayload(dateStr, plan, review, isComplete) {
     source: 'direct',
     title:  `End-of-Day Review — ${dateStr}`,
     metrics: {
-      dayStart:         review.dayStart         || null,
-      dayEnd:           review.dayEnd           || null,
-      plannedCompleted: num(review.plannedCompleted),
-      plannedTotal:     num(review.plannedTotal),
+      dayStart:         review.dayStart || null,
+      dayEnd:           review.dayEnd   || null,
+      plannedCompleted: useDerivation ? derivedDone  : (num(review.plannedCompleted) ?? null),
+      plannedTotal:     useDerivation ? derivedTotal : (num(review.plannedTotal)     ?? null),
       unplannedMinutes: unplannedMinutes || null,
       incidentCount:    num(review.incidentCount),
       gapCount:         0,
     },
+    planVsActual,
     unplannedWork: review.unplanned.filter(r => r.item),
     completedWork: review.completed.filter(Boolean),
     carryForward: {
@@ -598,7 +723,7 @@ export default function DayEditor() {
 
       {activeTab === 'plan'
         ? <PlanTab   data={plan}   onChange={setPlan}   />
-        : <ReviewTab data={review} onChange={setReview} />
+        : <ReviewTab data={review} onChange={setReview} planItems={plan.plan} />
       }
 
       {/* Save again at the bottom */}
