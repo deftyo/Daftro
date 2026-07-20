@@ -86,9 +86,14 @@ function indicatorPill(si) {
 
 function PlanVsActual({ blocks }) {
   if (!blocks?.length) return <p className="text-brand-3 text-sm">No data.</p>;
+  const sorted = [...blocks].sort((a, b) => {
+    const aTime = a.actualStart || a.planned?.split('–')[0] || '';
+    const bTime = b.actualStart || b.planned?.split('–')[0] || '';
+    return aTime.localeCompare(bTime);
+  });
   return (
     <div className="flex flex-col gap-3">
-      {blocks.map((b, i) => (
+      {sorted.map((b, i) => (
         <div key={i} className="rounded-lg border border-brand-8 bg-brand-7 p-4 shadow-card">
           <div className="flex items-start justify-between gap-3">
             <p className="font-medium text-sm text-gray-800">{b.heading}</p>

@@ -206,7 +206,11 @@ const STATUS_COLOURS = {
 };
 
 function PlanVsActualEditor({ planItems, pva, onChange }) {
-  const timed = planItems.filter(b => !b.open && b.description);
+  const timed = [...planItems.filter(b => !b.open && b.description)].sort((a, b) => {
+    const aTime = (pva[a.description]?.actualStart) || a.start || '';
+    const bTime = (pva[b.description]?.actualStart) || b.start || '';
+    return aTime.localeCompare(bTime);
+  });
 
   if (!timed.length) {
     return <p className="text-sm text-brand-3">No planned items — add them in Morning Plan first.</p>;
