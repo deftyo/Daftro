@@ -1,9 +1,10 @@
 'use strict';
 
-const express = require('express');
-const path    = require('path');
-const store   = require('./store');
-const watcher = require('./watcher');
+const express  = require('express');
+const path     = require('path');
+const cron     = require('node-cron');
+const { runMorningJob } = require('./jobs/morning');
+const { runEveningJob } = require('./jobs/evening');
 const daysRouter     = require('./routes/days');
 const trendsRouter   = require('./routes/trends');
 const calendarRouter = require('./routes/calendar');
@@ -11,9 +12,6 @@ const calendarRouter = require('./routes/calendar');
 const app        = express();
 const PORT       = process.env.PORT || 3000;
 const CLIENT_DIR = path.join(__dirname, '..', 'client', 'dist');
-const DEFAULT_DIR    = path.join(__dirname, '..', 'reports');
-const TASKLISTS_DIR  = process.env.TASKLISTS_DIR || process.env.REPORTS_DIR || DEFAULT_DIR;
-const REPORTS_DIR    = process.env.REPORTS_DIR   || DEFAULT_DIR;
 
 app.use(express.json());
 
@@ -28,13 +26,12 @@ app.get('*', (_req, res) => res.sendFile(path.join(CLIENT_DIR, 'index.html')));
 
 async function main() {
   await require('./scripts/db-init')();
-  await store.init(TASKLISTS_DIR, REPORTS_DIR);
-  watcher.start(TASKLISTS_DIR, REPORTS_DIR);
-  app.listen(PORT, () => {
-    console.log(`Daftro listening on http://localhost:${PORT}`);
-    console.log(`Tasklists: ${TASKLISTS_DIR}`);
-    console.log(`Reports:   ${REPORTS_DIR}`);
-  });
+
+  const TZ = { timezone: 'Europe/London' };
+  cron.schedule('52 8 * * 1-5',      () => runMorningJob().catch(console.error), TZ);
+  cron.schedule('*/15 16-20 * * 1-5', () => runEveningJob().catch(console.error), TZ);
+
+  app.listen(PORT, () => console.log(`Daftro listening on http://localhost:${PORT}`));
 }
 
 main().catch(err => { console.error(err); process.exit(1); });
