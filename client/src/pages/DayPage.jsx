@@ -3,19 +3,11 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 
 // ── Utilities ──────────────────────────────────────────────────────────────────
 
-function snap5(time) {
-  if (!time) return time;
-  const [h, m] = time.split(':').map(Number);
-  const snapped = Math.round(m / 5) * 5;
-  if (snapped >= 60) return `${String(h + 1).padStart(2, '0')}:00`;
-  return `${String(h).padStart(2, '0')}:${String(snapped).padStart(2, '0')}`;
-}
-
 // ── Shared styles ──────────────────────────────────────────────────────────────
 
 const inputCls = 'bg-white border border-brand-8 text-gray-900 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-1/20 focus:border-brand-1 placeholder-gray-400 w-full';
-const timeCls  = 'bg-white border border-brand-8 text-gray-900 rounded px-2 py-2 text-sm font-mono focus:outline-none focus:border-brand-1 w-28';
 const btnCls   = 'rounded-md px-3 py-1.5 text-xs font-medium transition-colors';
+const selCls   = 'bg-white border border-brand-8 text-gray-900 rounded px-1 py-2 text-sm font-mono focus:outline-none focus:border-brand-1';
 
 // ── Primitive UI ───────────────────────────────────────────────────────────────
 
@@ -41,11 +33,24 @@ function RemoveButton({ onClick }) {
   );
 }
 
-function TimeInput({ value, onChange, className }) {
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINS  = ['00','05','10','15','20','25','30','35','40','45','50','55'];
+
+function TimeInput({ value, onChange }) {
+  const [h, m] = value ? value.split(':') : ['', ''];
+  const emit = (nh, nm) => onChange(nh && nm ? `${nh}:${nm}` : '');
   return (
-    <input type="time" step="300" value={value}
-      onChange={e => onChange(snap5(e.target.value))}
-      className={className} />
+    <div className="flex items-center gap-0.5 shrink-0">
+      <select value={h || ''} onChange={e => emit(e.target.value, m || '00')} className={selCls}>
+        <option value="">--</option>
+        {HOURS.map(hr => <option key={hr} value={hr}>{hr}</option>)}
+      </select>
+      <span className="text-brand-3 text-xs px-0.5">:</span>
+      <select value={m || ''} onChange={e => emit(h || '00', e.target.value)} className={selCls}>
+        <option value="">--</option>
+        {MINS.map(mn => <option key={mn} value={mn}>{mn}</option>)}
+      </select>
+    </div>
   );
 }
 
@@ -98,17 +103,17 @@ function dayToForms(day) {
     notes:          Array.isArray(tl.notes) ? tl.notes.join('\n') : (tl.notes ?? ''),
   };
 
+  const rawPvaArr = Array.isArray(rp.planVsActual) ? rp.planVsActual : [];
   const pvaMap = {};
-  if (Array.isArray(rp.planVsActual)) {
-    rp.planVsActual.forEach(e => {
-      if (e.heading) pvaMap[e.heading] = {
-        actualStart: e.actualStart ?? '',
-        actualEnd:   e.actualEnd   ?? '',
-        status:      e.statusIndicator ?? '',
-        notes:       Array.isArray(e.notes) ? e.notes.join('\n') : (e.notes ?? ''),
-      };
-    });
-  }
+  rawPlan.filter(b => !(b.open ?? b.isOpen) && b.description).forEach((_, idx) => {
+    const e = rawPvaArr[idx];
+    if (e) pvaMap[idx] = {
+      actualStart: e.actualStart ?? '',
+      actualEnd:   e.actualEnd   ?? '',
+      status:      e.statusIndicator ?? '',
+      notes:       Array.isArray(e.notes) ? e.notes.join('\n') : (e.notes ?? ''),
+    };
+  });
 
   const review = {
     dayStart: m.dayStart ?? '',
@@ -141,8 +146,8 @@ function formsToPayload(dateStr, plan, review, isComplete) {
   }, 0);
 
   const timedItems   = plan.plan.filter(b => !b.open && b.description);
-  const planVsActual = timedItems.map(b => {
-    const ann = review.planVsActual?.[b.description] ?? {};
+  const planVsActual = timedItems.map((b, idx) => {
+    const ann = review.planVsActual?.[idx] ?? {};
     return {
       heading:         b.description,
       planned:         b.start && b.end ? `${b.start}–${b.end}` : '',
@@ -207,7 +212,7 @@ function MetricBox({ label, value }) {
 
 function MetricsBar({ plan, review }) {
   const timedItems   = plan.plan.filter(b => !b.open && b.description);
-  const pvaEntries   = timedItems.map(b => review.planVsActual?.[b.description] ?? {});
+  const pvaEntries   = timedItems.map((_, i) => review.planVsActual?.[i] ?? {});
   const anyStatus    = pvaEntries.some(a => a.status);
   const doneCt       = anyStatus ? pvaEntries.filter(a => a.status === 'done').length : null;
   const totalCt      = anyStatus ? timedItems.length : null;
@@ -250,9 +255,9 @@ function PlanEditor({ blocks, onChange }) {
     <div className="flex flex-col gap-2">
       {blocks.map((b, i) => (
         <div key={i} className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
-          <TimeInput value={b.start} onChange={v => update(i, 'start', v)} className={timeCls} />
+          <TimeInput value={b.start} onChange={v => update(i, 'start', v)} />
           <span className="text-brand-3 text-sm shrink-0">–</span>
-          <TimeInput value={b.end}   onChange={v => update(i, 'end',   v)} className={timeCls} />
+          <TimeInput value={b.end}   onChange={v => update(i, 'end',   v)} />
           <input value={b.description} onChange={e => update(i, 'description', e.target.value)}
             placeholder="Description" className={`${inputCls} flex-1`} />
           <label className="flex items-center gap-1.5 text-xs text-brand-3 shrink-0 cursor-pointer select-none">
@@ -273,7 +278,7 @@ function UnplannedEditor({ rows, onChange }) {
     <div className="flex flex-col gap-2">
       {rows.map((r, i) => (
         <div key={i} className="grid gap-2 items-center" style={{ gridTemplateColumns: '7rem 1fr 6rem 8rem auto' }}>
-          <TimeInput value={r.time} onChange={v => update(i, 'time', v)} className={timeCls} />
+          <TimeInput value={r.time} onChange={v => update(i, 'time', v)} />
           <input value={r.item}     onChange={e => update(i, 'item', e.target.value)}     placeholder="Description" className={inputCls} />
           <input value={r.duration} onChange={e => update(i, 'duration', e.target.value)} placeholder="30 min"     className={inputCls} />
           <select value={r.tag} onChange={e => update(i, 'tag', e.target.value)} className={`${inputCls} cursor-pointer`}>
@@ -315,13 +320,13 @@ function PlanVsActualEditor({ planItems, pva, onChange }) {
     return <p className="text-sm text-brand-3">No planned items — expand Morning Plan to add some.</p>;
   }
 
-  const update = (desc, field, val) =>
-    onChange({ ...pva, [desc]: { ...(pva[desc] ?? {}), [field]: val } });
+  const update = (idx, field, val) =>
+    onChange({ ...pva, [idx]: { ...(pva[idx] ?? {}), [field]: val } });
 
   return (
     <div className="flex flex-col gap-2">
       {timed.map((b, i) => {
-        const ann    = pva[b.description] ?? {};
+        const ann    = pva[i] ?? {};
         const colour = STATUS_COLOURS[ann.status] ?? 'border-l-brand-8';
         return (
           <div key={i} className={`rounded-lg border border-brand-8 border-l-4 ${colour} bg-gray-50 px-3 py-2`}>
@@ -330,7 +335,7 @@ function PlanVsActualEditor({ planItems, pva, onChange }) {
                 <p className="text-sm font-medium text-gray-900">{b.description}</p>
                 {b.start && b.end && <p className="text-xs font-mono text-brand-3">{b.start}–{b.end}</p>}
               </div>
-              <select value={ann.status ?? ''} onChange={e => update(b.description, 'status', e.target.value)}
+              <select value={ann.status ?? ''} onChange={e => update(i, 'status', e.target.value)}
                 className="rounded border border-brand-8 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none focus:border-brand-1">
                 {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
@@ -338,13 +343,13 @@ function PlanVsActualEditor({ planItems, pva, onChange }) {
             <div className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
               <div className="flex items-center gap-1 shrink-0">
                 <span className="text-xs text-brand-3 w-10">Start</span>
-                <TimeInput value={ann.actualStart ?? ''} onChange={v => update(b.description, 'actualStart', v)} className={timeCls} />
+                <TimeInput value={ann.actualStart ?? ''} onChange={v => update(i, 'actualStart', v)} />
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <span className="text-xs text-brand-3 w-8">End</span>
-                <TimeInput value={ann.actualEnd ?? ''} onChange={v => update(b.description, 'actualEnd', v)} className={timeCls} />
+                <TimeInput value={ann.actualEnd ?? ''} onChange={v => update(i, 'actualEnd', v)} />
               </div>
-              <input value={ann.notes ?? ''} onChange={e => update(b.description, 'notes', e.target.value)}
+              <input value={ann.notes ?? ''} onChange={e => update(i, 'notes', e.target.value)}
                 placeholder="Notes…" className={`${inputCls} flex-1`} />
             </div>
           </div>
@@ -539,6 +544,25 @@ export default function DayPage() {
         </div>
       </div>
 
+      {/* Evening job pending alert */}
+      {(() => {
+        const now = new Date();
+        const isWeekday = now.getDay() >= 1 && now.getDay() <= 5;
+        const afterCutoff = now.getHours() > 16 || (now.getHours() === 16 && now.getMinutes() >= 45);
+        const isToday = (() => {
+          const d = now;
+          return date === `${d.getMonth() + 1}-${d.getDate()}-${d.getFullYear()}`;
+        })();
+        if (!isWeekday || !afterCutoff || !isToday || isComplete) return null;
+        return (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-semibold text-amber-700">
+              Today isn&apos;t marked complete — tomorrow&apos;s skeleton is pending. The job will retry every 15 minutes until you mark it complete.
+            </p>
+          </div>
+        );
+      })()}
+
       {/* Gaps alert */}
       {gaps.length > 0 && (
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
@@ -601,11 +625,11 @@ export default function DayPage() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <div>
             <SectionLabel>Day start</SectionLabel>
-            <TimeInput value={review.dayStart} onChange={v => updateReview('dayStart', v)} className={timeCls} />
+            <TimeInput value={review.dayStart} onChange={v => updateReview('dayStart', v)} />
           </div>
           <div>
             <SectionLabel>Day end</SectionLabel>
-            <TimeInput value={review.dayEnd} onChange={v => updateReview('dayEnd', v)} className={timeCls} />
+            <TimeInput value={review.dayEnd} onChange={v => updateReview('dayEnd', v)} />
           </div>
           <div>
             <SectionLabel>Incidents</SectionLabel>

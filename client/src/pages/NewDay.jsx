@@ -5,6 +5,11 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function toApiDate(isoDate) {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  return `${m}-${d}-${y}`;
+}
+
 export default function NewDay() {
   const navigate = useNavigate();
   const [date, setDate] = useState(todayStr());
@@ -20,11 +25,11 @@ export default function NewDay() {
       const res = await fetch('/api/days', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ date, tasklist: { source: 'direct' }, report: { source: 'direct' } }),
+        body:    JSON.stringify({ date: toApiDate(date), tasklist: { source: 'direct' }, report: { source: 'direct' } }),
       });
       if (res.status === 409) { setError('A report for that date already exists.'); setSaving(false); return; }
       if (!res.ok) throw new Error(res.status);
-      navigate(`/${date}`);
+      navigate(`/${toApiDate(date)}`);
     } catch (err) {
       setError(`Failed to create: ${err.message}`);
       setSaving(false);

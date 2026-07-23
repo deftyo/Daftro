@@ -19,12 +19,7 @@ services:
       dockerfile: docker/Dockerfile
     ports:
       - "3000:3000"
-    volumes:
-      - ${TASKLISTS_DIR}:/tasklists
-      - ${REPORTS_DIR}:/reports
     environment:
-      - TASKLISTS_DIR=/tasklists
-      - REPORTS_DIR=/reports
       - PORT=3000
       - DATABASE_URL=postgresql://daftro:daftro@postgres:5432/daftro
     depends_on:
