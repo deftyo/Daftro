@@ -19,6 +19,8 @@ services:
       dockerfile: docker/Dockerfile
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
       - PORT=3000
       - DATABASE_URL=postgresql://daftro:daftro@postgres:5432/daftro

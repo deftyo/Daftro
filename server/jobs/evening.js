@@ -1,6 +1,7 @@
 'use strict';
 
-const store = require('../store');
+const store         = require('../store');
+const { sendToAll } = require('../lib/push');
 
 function nextWeekday() {
   const d = new Date();
@@ -24,6 +25,10 @@ async function runEveningJob() {
 
   if (!today.isComplete) {
     console.log(`[evening] ${todayStr} not marked complete — skipping tomorrow skeleton`);
+    await sendToAll({
+      title: 'Daftro — day not complete',
+      body:  'Mark today complete to generate tomorrow\'s plan. Retrying every 15 minutes.',
+    }).catch(console.error);
     return;
   }
 

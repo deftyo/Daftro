@@ -4,6 +4,7 @@ import DayList from './pages/DayList';
 import DayPage from './pages/DayPage';
 import NewDay from './pages/NewDay';
 import Trends from './pages/Trends';
+import { usePushSubscription } from './hooks/usePushSubscription';
 
 const BANNER_KEY = 'daftro_ical_dismissed';
 
@@ -56,6 +57,7 @@ function CalendarBanner() {
 }
 
 export default function App() {
+  usePushSubscription();
   return (
     <div className="min-h-screen bg-brand-6 text-gray-900">
       <header className="border-b border-brand-8 bg-brand-7 px-6 py-3 flex items-center gap-8 shadow-sm">

@@ -5,9 +5,11 @@ const path     = require('path');
 const cron     = require('node-cron');
 const { runMorningJob } = require('./jobs/morning');
 const { runEveningJob } = require('./jobs/evening');
+const { initVapid }    = require('./lib/push');
 const daysRouter     = require('./routes/days');
 const trendsRouter   = require('./routes/trends');
 const calendarRouter = require('./routes/calendar');
+const pushRouter     = require('./routes/push');
 
 const app        = express();
 const PORT       = process.env.PORT || 3000;
@@ -19,6 +21,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/days',     daysRouter);
 app.use('/api/trends',   trendsRouter);
 app.use('/api/calendar', calendarRouter);
+app.use('/api/push',     pushRouter);
 
 // Serve the Vite build; fall back to index.html for client-side routing
 app.use(express.static(CLIENT_DIR));
@@ -26,9 +29,10 @@ app.get('*', (_req, res) => res.sendFile(path.join(CLIENT_DIR, 'index.html')));
 
 async function main() {
   await require('./scripts/db-init')();
+  initVapid();
 
   const TZ = { timezone: 'Europe/London' };
-  cron.schedule('52 8 * * 1-5',      () => runMorningJob().catch(console.error), TZ);
+  cron.schedule('52 8 * * 1-5',       () => runMorningJob().catch(console.error), TZ);
   cron.schedule('*/15 16-20 * * 1-5', () => runEveningJob().catch(console.error), TZ);
 
   app.listen(PORT, () => console.log(`Daftro listening on http://localhost:${PORT}`));

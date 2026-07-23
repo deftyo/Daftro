@@ -37,6 +37,18 @@ async function main() {
     CREATE UNIQUE INDEX IF NOT EXISTS "Day_date_key" ON "Day"("date");
   `);
 
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS "PushSubscription" (
+      "id"        SERIAL        NOT NULL,
+      "endpoint"  TEXT          NOT NULL,
+      "p256dh"    TEXT          NOT NULL,
+      "auth"      TEXT          NOT NULL,
+      "createdAt" TIMESTAMP(3)  NOT NULL DEFAULT now(),
+      CONSTRAINT "PushSubscription_pkey" PRIMARY KEY ("id")
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "PushSubscription_endpoint_key" ON "PushSubscription"("endpoint");
+  `);
+
   await client.end();
   console.log('Database schema ready');
 }
