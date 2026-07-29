@@ -21,7 +21,17 @@ export function usePushSubscription() {
         const reg = await navigator.serviceWorker.register('/sw.js');
 
         const existing = await reg.pushManager.getSubscription();
-        if (existing) { setState('subscribed'); return; }
+
+        if (existing) {
+          // Re-POST on every load so the server always has an up-to-date record
+          await fetch('/api/push/subscribe', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(existing),
+          });
+          setState('subscribed');
+          return;
+        }
 
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') { setState('denied'); return; }

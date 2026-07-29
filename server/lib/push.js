@@ -35,4 +35,4 @@ async function sendToAll(payload) {
   console.log(`[push] sent=${sent} failed=${failed}`);
 }
 
-module.exports = { initVapid, sendToAll };
+module.exports = { initVapid, sendToAll, prisma };
