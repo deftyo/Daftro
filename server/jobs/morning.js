@@ -22,20 +22,13 @@ async function runMorningJob() {
     return;
   }
 
-  const prev = await store.getByDate(prevStr);
-  const cf   = prev?.report?.carryForward ?? {};
-  const carriedForward = [
-    ...(cf.blocked ?? []).map(x => x.item ?? x),
-    ...(cf.planned ?? []).map(x => x.item ?? x),
-  ].filter(Boolean);
-
   await store.upsertDay(todayStr, {
-    tasklist: { source: 'direct', carriedForward, priorities: [], plan: [] },
+    tasklist: { source: 'direct', priorities: [], plan: [] },
     report:   { source: 'direct' },
     isComplete: false,
   });
 
-  console.log(`[morning] Created ${todayStr} with ${carriedForward.length} carry-forward(s) from ${prevStr}`);
+  console.log(`[morning] Created ${todayStr}`);
 }
 
 module.exports = { runMorningJob };

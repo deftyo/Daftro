@@ -1,9 +1,35 @@
 import React, { useEffect, useState } from 'react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
 import CompletionRate    from '../components/charts/CompletionRate';
 import UnplannedTime     from '../components/charts/UnplannedTime';
 import DayLength         from '../components/charts/DayLength';
 import IncidentFrequency from '../components/charts/IncidentFrequency';
-import CarryForward      from '../components/charts/CarryForward';
+import MeetingTime       from '../components/charts/MeetingTime';
+import { C, TOOLTIP, AXIS, GRID } from '../components/charts/chartConfig';
+
+// ── Dev capacity chart (weekly only) ─────────────────────────────────────────
+
+function DevCapacity({ data }) {
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <BarChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
+        <CartesianGrid {...GRID} />
+        <XAxis dataKey="label" {...AXIS} />
+        <YAxis {...AXIS} domain={[0, 40]} tickFormatter={v => `${v}h`} />
+        <Tooltip
+          {...TOOLTIP}
+          formatter={(v, _, props) => [
+            `${v} hrs (meetings: ${(props.payload.meetingMinutes / 60).toFixed(1)} hrs)`,
+            'Dev capacity',
+          ]}
+        />
+        <ReferenceLine y={37.5} stroke={C.grid} strokeDasharray="4 4"
+          label={{ value: '37.5 h', fill: C.axis, fontSize: 10, position: 'right' }} />
+        <Bar dataKey="devCapacityHours" fill={C.primary} radius={[3, 3, 0, 0]} maxBarSize={40} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
 
 // ── Summary stats ─────────────────────────────────────────────────────────────
 
@@ -14,6 +40,7 @@ function summarise(data, view) {
 
   const withRate      = data.filter(d => d.completionRate != null);
   const withUnplanned = data.filter(d => d.unplannedMinutes != null);
+  const totalMeetingMins = data.reduce((s, d) => s + (d.meetingMinutes ?? 0), 0);
 
   return {
     totalDays,
@@ -24,6 +51,10 @@ function summarise(data, view) {
       ? Math.round(withUnplanned.reduce((s, d) => s + d.unplannedMinutes, 0) / withUnplanned.length)
       : null,
     totalIncidents: data.reduce((s, d) => s + (d.incidentCount ?? 0), 0),
+    totalMeetingMins,
+    avgDevCapacity: view === 'weekly' && data.length
+      ? Math.round(data.reduce((s, d) => s + (d.devCapacityHours ?? 37.5), 0) / data.length * 10) / 10
+      : null,
   };
 }
 
@@ -119,6 +150,18 @@ export default function Trends() {
               <StatBox label="Avg completion"     value={stats.avgCompletion != null ? `${stats.avgCompletion}%` : null} />
               <StatBox label="Avg unplanned / day" value={stats.avgUnplanned  != null ? `${stats.avgUnplanned} min` : null} />
               <StatBox label="Total incidents"     value={stats.totalIncidents} />
+              <StatBox
+                label="Meeting time"
+                value={stats.totalMeetingMins ? `${(stats.totalMeetingMins / 60).toFixed(1)} hrs` : '—'}
+                sub={`${stats.totalMeetingMins ?? 0} min total`}
+              />
+              {stats.avgDevCapacity != null && (
+                <StatBox
+                  label="Avg dev capacity / wk"
+                  value={`${stats.avgDevCapacity} hrs`}
+                  sub="37.5h − avg meeting time"
+                />
+              )}
             </div>
 
             <ChartCard
@@ -142,20 +185,32 @@ export default function Trends() {
               <DayLength data={data} />
             </ChartCard>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <ChartCard
+              title="Meeting time"
+              subtitle={
+                view === 'daily'   ? 'Minutes in meetings per day (any plan block containing "meeting")' :
+                view === 'weekly'  ? 'Total meeting hours per week — dashed line at 6 hrs' :
+                'Total meeting hours per month'
+              }
+            >
+              <MeetingTime data={data} view={view} />
+            </ChartCard>
+
+            {view === 'weekly' && (
               <ChartCard
-                title="Incident frequency"
-                subtitle={view === 'daily' ? 'Incidents per day' : `Total incidents per ${view === 'weekly' ? 'week' : 'month'}`}
+                title="Dev capacity"
+                subtitle="37.5 hrs contracted − meeting time = estimated dev hours per week"
               >
-                <IncidentFrequency data={data} />
+                <DevCapacity data={data} />
               </ChartCard>
-              <ChartCard
-                title="Carry-forward count"
-                subtitle={view === 'daily' ? 'Items slipping to next day' : 'Avg carry-forward per day'}
-              >
-                <CarryForward data={data} />
-              </ChartCard>
-            </div>
+            )}
+
+            <ChartCard
+              title="Incident frequency"
+              subtitle={view === 'daily' ? 'Incidents per day' : `Total incidents per ${view === 'weekly' ? 'week' : 'month'}`}
+            >
+              <IncidentFrequency data={data} />
+            </ChartCard>
           </>
         );
       })()}

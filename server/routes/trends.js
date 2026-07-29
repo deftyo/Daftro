@@ -60,9 +60,23 @@ async function getCompleteDays() {
       plannedCompleted: true, plannedTotal: true,
       unplannedMinutes: true,
       dayStart: true, dayEnd: true,
-      incidentCount: true, carryForwardCount: true,
+      incidentCount: true,
+      tasklistData: true,
     },
   });
+}
+
+function meetingMinutes(day) {
+  const plan = day.tasklistData?.plan;
+  if (!Array.isArray(plan)) return 0;
+  return plan.reduce((total, block) => {
+    if (!block.description || !/meeting/i.test(block.description)) return total;
+    if (!block.start || !block.end) return total;
+    const [sh, sm] = block.start.split(':').map(Number);
+    const [eh, em] = block.end.split(':').map(Number);
+    const mins = (eh * 60 + em) - (sh * 60 + sm);
+    return total + (mins > 0 ? mins : 0);
+  }, 0);
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -83,7 +97,7 @@ router.get('/daily', async (_req, res) => {
         dayStart:         d.dayStart,
         dayEnd:           d.dayEnd,
         incidentCount:    d.incidentCount ?? 0,
-        carryForwardCount: d.carryForwardCount ?? 0,
+        meetingMinutes:   meetingMinutes(d),
       };
     });
     res.json(data);
@@ -107,6 +121,7 @@ router.get('/weekly', async (_req, res) => {
 
     const data = [...groups.values()].map(({ year, week, days }) => {
       const rates = days.map(d => completionRate(d.plannedCompleted, d.plannedTotal));
+      const totalMeetingMins = sum(days.map(d => meetingMinutes(d)));
       return {
         label:            `W${week} '${String(year).slice(2)}`,
         days:             days.length,
@@ -116,7 +131,8 @@ router.get('/weekly', async (_req, res) => {
         unplannedMinutes: avg(days.map(d => d.unplannedMinutes)),
         dayLengthHours:   avgF(days.map(d => toHours(d.dayStart, d.dayEnd))),
         incidentCount:    sum(days.map(d => d.incidentCount ?? 0)),
-        carryForwardCount: avg(days.map(d => d.carryForwardCount)),
+        meetingMinutes:   totalMeetingMins,
+        devCapacityHours: Math.round((37.5 - totalMeetingMins / 60) * 10) / 10,
       };
     });
     res.json(data);
@@ -150,7 +166,7 @@ router.get('/monthly', async (_req, res) => {
         unplannedMinutes: avg(days.map(d => d.unplannedMinutes)),
         dayLengthHours:   avgF(days.map(d => toHours(d.dayStart, d.dayEnd))),
         incidentCount:    sum(days.map(d => d.incidentCount ?? 0)),
-        carryForwardCount: avg(days.map(d => d.carryForwardCount)),
+        meetingMinutes:   sum(days.map(d => meetingMinutes(d))),
       };
     });
     res.json(data);

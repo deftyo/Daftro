@@ -1,18 +1,52 @@
 'use strict';
 
-const path    = require('path');
 const request = require('supertest');
 const express = require('express');
 
-// Point store at the example fixtures before requiring the app modules
-process.env.REPORTS_DIR = path.join(__dirname, '../../reports/example');
+jest.mock('../store');
+const store = require('../store');
 
-const store      = require('../store');
+const EXAMPLE_DAY = {
+  date:       '7-10-2026',
+  parsedDate: new Date('2026-07-10T00:00:00.000Z'),
+  isComplete: true,
+  gaps:       [],
+  tasklistError: null,
+  reportError:   null,
+  tasklist: {
+    source:     'direct',
+    priorities: ['Ship the feature', 'Review PRs'],
+    plan:       [{ start: '09:00', end: '10:00', description: 'Planning meeting', open: false }],
+    notes:      null,
+  },
+  report: {
+    source:  'direct',
+    metrics: {
+      dayStart:         '09:00',
+      dayEnd:           '17:00',
+      plannedCompleted: 3,
+      plannedTotal:     4,
+      unplannedMinutes: 30,
+      incidentCount:    0,
+    },
+    planVsActual:  [],
+    unplannedWork: [],
+    completedWork: [],
+    notes:         [],
+  },
+};
+
 const daysRouter = require('../routes/days');
 
 let app;
 beforeAll(() => {
-  store.init(process.env.REPORTS_DIR);
+  store.getAll.mockResolvedValue([EXAMPLE_DAY]);
+  store.getByDate.mockImplementation(date =>
+    Promise.resolve(date === '7-10-2026' ? EXAMPLE_DAY : null)
+  );
+  store.upsertDay.mockResolvedValue(undefined);
+  store.deleteDay.mockResolvedValue(undefined);
+
   app = express();
   app.use(express.json());
   app.use('/api/days', daysRouter);

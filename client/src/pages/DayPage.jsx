@@ -67,7 +67,7 @@ function Pill({ children, colour = 'default' }) {
 // ── Data model ─────────────────────────────────────────────────────────────────
 
 function emptyPlan() {
-  return { priorities: [], plan: [], carriedForward: [], notes: '' };
+  return { priorities: [], plan: [], notes: '' };
 }
 
 function emptyReview() {
@@ -75,7 +75,6 @@ function emptyReview() {
     dayStart: '', dayEnd: '',
     planVsActual: {},
     unplanned: [],
-    carryForward: { blocked: [], planned: [], watch: [] },
     incidentCount: '',
     notes: '',
   };
@@ -87,9 +86,6 @@ function dayToForms(day) {
   const m  = rp.metrics    ?? {};
 
   const rawPlan = Array.isArray(tl.plan) ? tl.plan : (Array.isArray(tl.dayPlan) ? tl.dayPlan : []);
-  const rawCf   = Array.isArray(tl.carriedForward)
-    ? tl.carriedForward
-    : (Array.isArray(tl.carriedForward?.items) ? tl.carriedForward.items : []);
 
   const plan = {
     priorities:    Array.isArray(tl.priorities) ? tl.priorities : [],
@@ -99,7 +95,6 @@ function dayToForms(day) {
       description: b.description ?? '',
       open:        !!(b.open ?? b.isOpen),
     })),
-    carriedForward: rawCf,
     notes:          Array.isArray(tl.notes) ? tl.notes.join('\n') : (tl.notes ?? ''),
   };
 
@@ -125,11 +120,6 @@ function dayToForms(day) {
       duration: r.duration ?? '',
       tag:      r.tag      ?? '',
     })),
-    carryForward: {
-      blocked: Array.isArray(rp.carryForward?.blocked) ? rp.carryForward.blocked.map(x => x.item ?? x) : [],
-      planned: Array.isArray(rp.carryForward?.planned) ? rp.carryForward.planned.map(x => x.item ?? x) : [],
-      watch:   Array.isArray(rp.carryForward?.watch)   ? rp.carryForward.watch : [],
-    },
     incidentCount: m.incidentCount != null ? String(m.incidentCount) : '',
     notes: Array.isArray(rp.notes) ? rp.notes.join('\n') : (rp.notes ?? ''),
   };
@@ -168,11 +158,10 @@ function formsToPayload(dateStr, plan, review, isComplete) {
     date: dateStr,
     isComplete,
     tasklist: {
-      source:         'direct',
-      priorities:     plan.priorities.filter(Boolean),
-      plan:           plan.plan.filter(b => b.description || b.start),
-      carriedForward: plan.carriedForward.filter(Boolean),
-      notes:          plan.notes || null,
+      source:     'direct',
+      priorities: plan.priorities.filter(Boolean),
+      plan:       plan.plan.filter(b => b.description || b.start),
+      notes:      plan.notes || null,
     },
     report: {
       source: 'direct',
@@ -189,11 +178,6 @@ function formsToPayload(dateStr, plan, review, isComplete) {
       planVsActual,
       unplannedWork: review.unplanned.filter(r => r.item),
       completedWork,
-      carryForward: {
-        blocked: review.carryForward.blocked.filter(Boolean).map(item => ({ item })),
-        planned: review.carryForward.planned.filter(Boolean).map(item => ({ item })),
-        watch:   review.carryForward.watch.filter(Boolean),
-      },
       notes: review.notes ? [review.notes] : [],
     },
   };
@@ -517,8 +501,6 @@ export default function DayPage() {
     plan.plan.filter(b => !b.open && b.description).length > 0 &&
       `${plan.plan.filter(b => !b.open && b.description).length} blocks`,
     plan.priorities.length > 0 && `${plan.priorities.length} priorities`,
-    plan.carriedForward.filter(Boolean).length > 0 &&
-      `${plan.carriedForward.filter(Boolean).length} carried forward`,
   ].filter(Boolean).join(' · ') || 'No plan yet';
 
   return (
@@ -601,10 +583,6 @@ export default function DayPage() {
           <PlanEditor blocks={plan.plan} onChange={v => updatePlan('plan', v)} />
         </div>
         <div>
-          <SectionLabel>Carried forward</SectionLabel>
-          <DynamicList items={plan.carriedForward} onChange={v => updatePlan('carriedForward', v)} placeholder="Carried forward task" />
-        </div>
-        <div>
           <SectionLabel>Notes</SectionLabel>
           <textarea value={plan.notes} onChange={e => updatePlan('notes', e.target.value)}
             rows={3} placeholder="Any notes for the day…" className={inputCls} />
@@ -643,36 +621,6 @@ export default function DayPage() {
       {/* Unplanned work */}
       <Section title="Unplanned work">
         <UnplannedEditor rows={review.unplanned} onChange={v => updateReview('unplanned', v)} />
-      </Section>
-
-      {/* Carry forward */}
-      <Section title="Carry forward">
-        <div className="flex flex-col gap-6">
-          <div>
-            <SectionLabel>Blocked</SectionLabel>
-            <DynamicList
-              items={review.carryForward.blocked}
-              onChange={v => updateReview('carryForward', { ...review.carryForward, blocked: v })}
-              placeholder="Blocked item"
-            />
-          </div>
-          <div>
-            <SectionLabel>Planned for tomorrow</SectionLabel>
-            <DynamicList
-              items={review.carryForward.planned}
-              onChange={v => updateReview('carryForward', { ...review.carryForward, planned: v })}
-              placeholder="Carry forward task"
-            />
-          </div>
-          <div>
-            <SectionLabel>Watch</SectionLabel>
-            <DynamicList
-              items={review.carryForward.watch}
-              onChange={v => updateReview('carryForward', { ...review.carryForward, watch: v })}
-              placeholder="Watch item"
-            />
-          </div>
-        </div>
       </Section>
 
       {/* EOD Notes */}
