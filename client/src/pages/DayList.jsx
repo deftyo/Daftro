@@ -16,9 +16,24 @@ function MetricPill({ label, value }) {
   );
 }
 
+const WEEK_DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTHS_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function ordinal(n) {
+  const v = n % 100;
+  const s = ['th','st','nd','rd'];
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function formatDayLabel(dateStr) {
+  const [m, d, y] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  return `${WEEK_DAYS[dt.getDay()]} ${ordinal(d)} ${MONTHS_LONG[m - 1]}`;
+}
+
 function DayCard({ day }) {
   const m = day.metrics;
-  const dateLabel = day.date.replace(/-/g, '/');
+  const dateLabel = formatDayLabel(day.date);
 
   return (
     <Link
@@ -26,7 +41,7 @@ function DayCard({ day }) {
       className="block rounded-lg border border-brand-8 bg-brand-7 p-5 hover:shadow-card-hover hover:border-gray-300 transition-all shadow-card"
     >
       <div className="flex items-center justify-between gap-4">
-        <span className="font-mono text-base font-semibold text-gray-900">{dateLabel}</span>
+        <span className="text-base font-semibold text-gray-900">{dateLabel}</span>
         <StatusBadge isComplete={day.isComplete} />
       </div>
 
@@ -67,8 +82,11 @@ export default function DayList() {
 
   useEffect(() => {
     fetch('/api/days')
-      .then(r => r.json())
-      .then(setDays)
+      .then(r => { if (!r.ok) throw new Error(`Server error ${r.status}`); return r.json(); })
+      .then(data => {
+        if (!Array.isArray(data)) throw new Error('Unexpected response from server');
+        setDays(data);
+      })
       .catch(e => setError(e.message));
   }, []);
 

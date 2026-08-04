@@ -66,12 +66,16 @@ async function getCompleteDays() {
   });
 }
 
+function isMeeting(block) {
+  if (block.category === 'meeting') return true;
+  return block.description && /meeting/i.test(block.description);
+}
+
 function meetingMinutes(day) {
   const plan = day.tasklistData?.plan;
   if (!Array.isArray(plan)) return 0;
   return plan.reduce((total, block) => {
-    if (!block.description || !/meeting/i.test(block.description)) return total;
-    if (!block.start || !block.end) return total;
+    if (!isMeeting(block) || !block.start || !block.end) return total;
     const [sh, sm] = block.start.split(':').map(Number);
     const [eh, em] = block.end.split(':').map(Number);
     const mins = (eh * 60 + em) - (sh * 60 + sm);
