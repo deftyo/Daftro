@@ -123,16 +123,17 @@ router.get('/weekly', async (_req, res) => {
       const rates = days.map(d => completionRate(d.plannedCompleted, d.plannedTotal));
       const totalMeetingMins = sum(days.map(d => meetingMinutes(d)));
       return {
-        label:            `W${week} '${String(year).slice(2)}`,
-        days:             days.length,
-        completionRate:   avg(rates),
-        plannedCompleted: sum(days.map(d => d.plannedCompleted)),
-        plannedTotal:     sum(days.map(d => d.plannedTotal)),
-        unplannedMinutes: avg(days.map(d => d.unplannedMinutes)),
-        dayLengthHours:   avgF(days.map(d => toHours(d.dayStart, d.dayEnd))),
-        incidentCount:    sum(days.map(d => d.incidentCount ?? 0)),
-        meetingMinutes:   totalMeetingMins,
-        devCapacityHours: Math.round((37.5 - totalMeetingMins / 60) * 10) / 10,
+        label:                `W${week} '${String(year).slice(2)}`,
+        days:                 days.length,
+        completionRate:       avg(rates),
+        plannedCompleted:     sum(days.map(d => d.plannedCompleted)),
+        plannedTotal:         sum(days.map(d => d.plannedTotal)),
+        unplannedMinutes:     avg(days.map(d => d.unplannedMinutes)),
+        dayLengthHours:       avgF(days.map(d => toHours(d.dayStart, d.dayEnd))),
+        incidentCount:        sum(days.map(d => d.incidentCount ?? 0)),
+        meetingMinutes:       totalMeetingMins,
+        avgDailyMeetingMins:  Math.round(totalMeetingMins / days.length),
+        devCapacityHours:     Math.round((37.5 - totalMeetingMins / 60) * 10) / 10,
       };
     });
     res.json(data);
@@ -157,16 +158,18 @@ router.get('/monthly', async (_req, res) => {
 
     const data = [...groups.values()].map(({ year, month, days }) => {
       const rates = days.map(d => completionRate(d.plannedCompleted, d.plannedTotal));
+      const totalMeetingMins = sum(days.map(d => meetingMinutes(d)));
       return {
-        label:            `${MONTHS[month]} '${String(year).slice(2)}`,
-        days:             days.length,
-        completionRate:   avg(rates),
-        plannedCompleted: sum(days.map(d => d.plannedCompleted)),
-        plannedTotal:     sum(days.map(d => d.plannedTotal)),
-        unplannedMinutes: avg(days.map(d => d.unplannedMinutes)),
-        dayLengthHours:   avgF(days.map(d => toHours(d.dayStart, d.dayEnd))),
-        incidentCount:    sum(days.map(d => d.incidentCount ?? 0)),
-        meetingMinutes:   sum(days.map(d => meetingMinutes(d))),
+        label:               `${MONTHS[month]} '${String(year).slice(2)}`,
+        days:                days.length,
+        completionRate:      avg(rates),
+        plannedCompleted:    sum(days.map(d => d.plannedCompleted)),
+        plannedTotal:        sum(days.map(d => d.plannedTotal)),
+        unplannedMinutes:    avg(days.map(d => d.unplannedMinutes)),
+        dayLengthHours:      avgF(days.map(d => toHours(d.dayStart, d.dayEnd))),
+        incidentCount:       sum(days.map(d => d.incidentCount ?? 0)),
+        meetingMinutes:      totalMeetingMins,
+        avgDailyMeetingMins: Math.round(totalMeetingMins / days.length),
       };
     });
     res.json(data);
