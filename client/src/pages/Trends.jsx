@@ -42,6 +42,9 @@ function summarise(data, view) {
   const withUnplanned = data.filter(d => d.unplannedMinutes != null);
   const totalMeetingMins = data.reduce((s, d) => s + (d.meetingMinutes ?? 0), 0);
 
+  // Avg per snapshot (day/week/month) so the stat box and dev capacity are consistent
+  const avgMeetingMins = data.length ? Math.round(totalMeetingMins / data.length) : 0;
+
   return {
     totalDays,
     avgCompletion: withRate.length
@@ -51,9 +54,10 @@ function summarise(data, view) {
       ? Math.round(withUnplanned.reduce((s, d) => s + d.unplannedMinutes, 0) / withUnplanned.length)
       : null,
     totalIncidents: data.reduce((s, d) => s + (d.incidentCount ?? 0), 0),
-    totalMeetingMins,
-    avgDevCapacity: view === 'weekly' && data.length
-      ? Math.round(data.reduce((s, d) => s + (d.devCapacityHours ?? 37.5), 0) / data.length * 10) / 10
+    avgMeetingMins,
+    // Derived from avgMeetingMins so both stat boxes show consistent numbers
+    avgDevCapacity: view === 'weekly' && avgMeetingMins != null
+      ? Math.round((37.5 - avgMeetingMins / 60) * 10) / 10
       : null,
   };
 }
@@ -151,15 +155,19 @@ export default function Trends() {
               <StatBox label="Avg unplanned / day" value={stats.avgUnplanned  != null ? `${stats.avgUnplanned} min` : null} />
               <StatBox label="Total incidents"     value={stats.totalIncidents} />
               <StatBox
-                label="Meeting time"
-                value={stats.totalMeetingMins ? `${(stats.totalMeetingMins / 60).toFixed(1)} hrs` : '—'}
-                sub={`${stats.totalMeetingMins ?? 0} min total`}
+                label={view === 'daily' ? 'Avg meeting / day' : view === 'weekly' ? 'Avg meeting / week' : 'Avg meeting / month'}
+                value={stats.avgMeetingMins
+                  ? view === 'daily'
+                    ? `${stats.avgMeetingMins} min`
+                    : `${(stats.avgMeetingMins / 60).toFixed(1)} hrs`
+                  : '—'}
+                sub={view !== 'daily' ? `${stats.avgMeetingMins} min avg` : null}
               />
               {stats.avgDevCapacity != null && (
                 <StatBox
                   label="Avg dev capacity / wk"
                   value={`${stats.avgDevCapacity} hrs`}
-                  sub="37.5h − avg meeting time"
+                  sub={`37.5h − ${(stats.avgMeetingMins / 60).toFixed(1)}h avg meetings`}
                 />
               )}
             </div>
