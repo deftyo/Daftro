@@ -188,9 +188,9 @@ export default function Trends() {
             <ChartCard
               title="Meeting time"
               subtitle={
-                view === 'daily'   ? 'Minutes in meetings per day (any plan block containing "meeting")' :
-                view === 'weekly'  ? 'Total meeting hours per week — dashed line at 6 hrs' :
-                'Total meeting hours per month'
+                view === 'daily'
+                  ? 'Minutes in meetings per day (any plan block containing "meeting") — dashed line at 1 hr'
+                  : `Avg minutes per working day — dashed line at 1 hr (${view === 'weekly' ? 'weekly' : 'monthly'} rollup)`
               }
             >
               <MeetingTime data={data} view={view} />

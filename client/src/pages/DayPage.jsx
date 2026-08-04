@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
 // ── Utilities ──────────────────────────────────────────────────────────────────
@@ -72,10 +72,8 @@ function emptyPlan() {
 
 function emptyReview() {
   return {
-    dayStart: '', dayEnd: '',
     planVsActual: {},
     unplanned: [],
-    incidentCount: '',
     notes: '',
   };
 }
@@ -94,6 +92,7 @@ function dayToForms(day) {
       end:         b.end         ?? '',
       description: b.description ?? '',
       open:        !!(b.open ?? b.isOpen),
+      category:    b.category    ?? '',
     })),
     notes:          Array.isArray(tl.notes) ? tl.notes.join('\n') : (tl.notes ?? ''),
   };
@@ -111,8 +110,6 @@ function dayToForms(day) {
   });
 
   const review = {
-    dayStart: m.dayStart ?? '',
-    dayEnd:   m.dayEnd   ?? '',
     planVsActual: pvaMap,
     unplanned: (Array.isArray(rp.unplannedWork) ? rp.unplannedWork : []).map(r => ({
       time:     r.time     ?? '',
@@ -120,20 +117,29 @@ function dayToForms(day) {
       duration: r.duration ?? '',
       tag:      r.tag      ?? '',
     })),
-    incidentCount: m.incidentCount != null ? String(m.incidentCount) : '',
     notes: Array.isArray(rp.notes) ? rp.notes.join('\n') : (rp.notes ?? ''),
   };
 
   return { plan, review };
 }
 
-function formsToPayload(dateStr, plan, review, isComplete) {
-  const num = v => (v === '' || v == null) ? null : Number(v);
+function deriveDayBounds(planVsActual) {
+  const starts = Object.values(planVsActual).map(e => e.actualStart).filter(Boolean).sort();
+  const ends   = Object.values(planVsActual).map(e => e.actualEnd).filter(Boolean).sort();
+  return {
+    dayStart: starts[0] ?? null,
+    dayEnd:   ends[ends.length - 1] ?? null,
+  };
+}
 
+function formsToPayload(dateStr, plan, review, isComplete) {
   const unplannedMinutes = review.unplanned.reduce((acc, r) => {
     const m = parseInt(r.duration, 10);
     return acc + (isNaN(m) ? 0 : m);
   }, 0);
+
+  const { dayStart, dayEnd } = deriveDayBounds(review.planVsActual);
+  const incidentCount = review.unplanned.filter(r => r.tag === 'incident/unplanned').length;
 
   const timedItems   = plan.plan.filter(b => !b.open && b.description);
   const planVsActual = timedItems.map((b, idx) => {
@@ -167,12 +173,12 @@ function formsToPayload(dateStr, plan, review, isComplete) {
       source: 'direct',
       title:  `End-of-Day Review — ${dateStr}`,
       metrics: {
-        dayStart:         review.dayStart || null,
-        dayEnd:           review.dayEnd   || null,
+        dayStart,
+        dayEnd,
         plannedCompleted: useDerivation ? derivedDone  : null,
         plannedTotal:     useDerivation ? derivedTotal : null,
         unplannedMinutes: unplannedMinutes || null,
-        incidentCount:    num(review.incidentCount),
+        incidentCount:    incidentCount || null,
         gapCount:         0,
       },
       planVsActual,
@@ -201,17 +207,19 @@ function MetricsBar({ plan, review }) {
   const doneCt       = anyStatus ? pvaEntries.filter(a => a.status === 'done').length : null;
   const totalCt      = anyStatus ? timedItems.length : null;
   const unplannedMin = review.unplanned.reduce((s, r) => s + (parseInt(r.duration, 10) || 0), 0);
+  const { dayStart, dayEnd } = deriveDayBounds(review.planVsActual);
+  const incidentCt   = review.unplanned.filter(r => r.tag === 'incident/unplanned').length;
 
-  if (!review.dayStart && !review.dayEnd && doneCt == null && !unplannedMin && !review.incidentCount) return null;
+  if (!dayStart && !dayEnd && doneCt == null && !unplannedMin && !incidentCt) return null;
 
   return (
     <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {(review.dayStart || review.dayEnd) && (
-        <MetricBox label="Day" value={[review.dayStart, review.dayEnd].filter(Boolean).join(' – ')} />
+      {(dayStart || dayEnd) && (
+        <MetricBox label="Day" value={[dayStart, dayEnd].filter(Boolean).join(' – ')} />
       )}
       {doneCt != null && <MetricBox label="Planned" value={`${doneCt} / ${totalCt}`} />}
       {unplannedMin > 0 && <MetricBox label="Unplanned" value={`${unplannedMin} min`} />}
-      {review.incidentCount && <MetricBox label="Incidents" value={review.incidentCount} />}
+      {incidentCt > 0 && <MetricBox label="Incidents" value={incidentCt} />}
     </div>
   );
 }
@@ -233,6 +241,16 @@ function DynamicList({ items, onChange, placeholder }) {
   );
 }
 
+const CATEGORIES = [
+  { value: '',            label: 'Uncategorised' },
+  { value: 'development', label: 'Development' },
+  { value: 'meeting',     label: 'Meeting' },
+  { value: 'admin',       label: 'Admin' },
+  { value: 'support',     label: 'Support' },
+  { value: 'planning',    label: 'Planning' },
+  { value: 'other',       label: 'Other' },
+];
+
 function PlanEditor({ blocks, onChange }) {
   const update = (i, field, val) => onChange(blocks.map((b, idx) => idx === i ? { ...b, [field]: val } : b));
   return (
@@ -244,6 +262,10 @@ function PlanEditor({ blocks, onChange }) {
           <TimeInput value={b.end}   onChange={v => update(i, 'end',   v)} />
           <input value={b.description} onChange={e => update(i, 'description', e.target.value)}
             placeholder="Description" className={`${inputCls} flex-1`} />
+          <select value={b.category ?? ''} onChange={e => update(i, 'category', e.target.value)}
+            className={`${selCls} text-xs`} title="Category">
+            {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
           <label className="flex items-center gap-1.5 text-xs text-brand-3 shrink-0 cursor-pointer select-none">
             <input type="checkbox" checked={!!b.open} onChange={e => update(i, 'open', e.target.checked)} className="accent-brand-1" />
             Open
@@ -251,7 +273,7 @@ function PlanEditor({ blocks, onChange }) {
           <RemoveButton onClick={() => onChange(blocks.filter((_, idx) => idx !== i))} />
         </div>
       ))}
-      <AddButton onClick={() => onChange([...blocks, { start: '', end: '', description: '', open: false }])} label="Add block" />
+      <AddButton onClick={() => onChange([...blocks, { start: '', end: '', description: '', open: false, category: '' }])} label="Add block" />
     </div>
   );
 }
@@ -371,6 +393,71 @@ function Section({ title, children }) {
       <p className="text-sm font-semibold text-gray-800 mb-4 pb-2 border-b border-brand-8">{title}</p>
       {children}
     </div>
+  );
+}
+
+// ── Day summary (derived, readonly) ───────────────────────────────────────────
+
+const CAT_COLOURS = {
+  development: 'bg-blue-50 text-blue-700 border-blue-200',
+  meeting:     'bg-purple-50 text-purple-700 border-purple-200',
+  admin:       'bg-gray-100 text-gray-600 border-gray-200',
+  support:     'bg-amber-50 text-amber-700 border-amber-200',
+  planning:    'bg-teal-50 text-teal-700 border-teal-200',
+  other:       'bg-pink-50 text-pink-700 border-pink-200',
+};
+
+function DaySummarySection({ review, plan }) {
+  const { dayStart, dayEnd } = useMemo(() => deriveDayBounds(review.planVsActual), [review.planVsActual]);
+  const incidentCt = review.unplanned.filter(r => r.tag === 'incident/unplanned').length;
+
+  const catMins = useMemo(() => {
+    const timed = plan.plan.filter(b => !b.open && b.description && b.start && b.end && b.category);
+    const map = {};
+    for (const b of timed) {
+      const [sh, sm] = b.start.split(':').map(Number);
+      const [eh, em] = b.end.split(':').map(Number);
+      const mins = (eh * 60 + em) - (sh * 60 + sm);
+      if (mins > 0) map[b.category] = (map[b.category] ?? 0) + mins;
+    }
+    return map;
+  }, [plan.plan]);
+
+  const hasCats = Object.keys(catMins).length > 0;
+
+  return (
+    <Section title="Day summary">
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        <div>
+          <SectionLabel>Day start</SectionLabel>
+          <p className="font-mono text-sm text-gray-900">{dayStart || '—'}</p>
+          <p className="text-xs text-brand-3 mt-0.5">from first actual time</p>
+        </div>
+        <div>
+          <SectionLabel>Day end</SectionLabel>
+          <p className="font-mono text-sm text-gray-900">{dayEnd || '—'}</p>
+          <p className="text-xs text-brand-3 mt-0.5">from last actual time</p>
+        </div>
+        <div>
+          <SectionLabel>Incidents</SectionLabel>
+          <p className="font-mono text-sm text-gray-900">{incidentCt || '—'}</p>
+          <p className="text-xs text-brand-3 mt-0.5">tagged incident/unplanned</p>
+        </div>
+      </div>
+      {hasCats && (
+        <div>
+          <SectionLabel>Time by category</SectionLabel>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(catMins).map(([cat, mins]) => (
+              <span key={cat}
+                className={`rounded border px-2 py-0.5 text-xs font-medium ${CAT_COLOURS[cat] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                {CATEGORIES.find(c => c.value === cat)?.label ?? cat}: {mins} min
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </Section>
   );
 }
 
@@ -599,24 +686,7 @@ export default function DayPage() {
       </Section>
 
       {/* Day summary */}
-      <Section title="Day summary">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <div>
-            <SectionLabel>Day start</SectionLabel>
-            <TimeInput value={review.dayStart} onChange={v => updateReview('dayStart', v)} />
-          </div>
-          <div>
-            <SectionLabel>Day end</SectionLabel>
-            <TimeInput value={review.dayEnd} onChange={v => updateReview('dayEnd', v)} />
-          </div>
-          <div>
-            <SectionLabel>Incidents</SectionLabel>
-            <input type="number" min="0" value={review.incidentCount}
-              onChange={e => updateReview('incidentCount', e.target.value)}
-              placeholder="0" className={`${inputCls} w-20`} />
-          </div>
-        </div>
-      </Section>
+      <DaySummarySection review={review} plan={plan} />
 
       {/* Unplanned work */}
       <Section title="Unplanned work">
