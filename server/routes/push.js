@@ -7,27 +7,37 @@ const router = express.Router();
 
 // POST /api/push/subscribe
 router.post('/subscribe', async (req, res) => {
-  const { endpoint, keys } = req.body;
-  if (!endpoint || !keys?.p256dh || !keys?.auth) {
-    return res.status(400).json({ error: 'Invalid subscription object' });
+  try {
+    const { endpoint, keys } = req.body;
+    if (!endpoint || !keys?.p256dh || !keys?.auth) {
+      return res.status(400).json({ error: 'Invalid subscription object' });
+    }
+
+    await prisma.pushSubscription.upsert({
+      where: { endpoint },
+      update: { p256dh: keys.p256dh, auth: keys.auth },
+      create: { endpoint, p256dh: keys.p256dh, auth: keys.auth },
+    });
+
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    console.error('[push] subscribe error:', err.message);
+    res.status(500).json({ error: 'Push subscription unavailable' });
   }
-
-  await prisma.pushSubscription.upsert({
-    where: { endpoint },
-    update: { p256dh: keys.p256dh, auth: keys.auth },
-    create: { endpoint, p256dh: keys.p256dh, auth: keys.auth },
-  });
-
-  res.status(201).json({ ok: true });
 });
 
 // DELETE /api/push/subscribe
 router.delete('/subscribe', async (req, res) => {
-  const { endpoint } = req.body;
-  if (!endpoint) return res.status(400).json({ error: 'Missing endpoint' });
+  try {
+    const { endpoint } = req.body;
+    if (!endpoint) return res.status(400).json({ error: 'Missing endpoint' });
 
-  await prisma.pushSubscription.deleteMany({ where: { endpoint } });
-  res.json({ ok: true });
+    await prisma.pushSubscription.deleteMany({ where: { endpoint } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[push] unsubscribe error:', err.message);
+    res.status(500).json({ error: 'Push subscription unavailable' });
+  }
 });
 
 // GET /api/push/vapid-public-key

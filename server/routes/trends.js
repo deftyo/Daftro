@@ -66,17 +66,37 @@ async function getCompleteDays() {
   });
 }
 
+const OVERHEAD_CATS = new Set(['meeting', 'admin', 'support', 'other']);
+
+function isMeeting(block) {
+  if (block.category === 'meeting') return true;
+  return block.description && /meeting/i.test(block.description);
+}
+
+function isOverhead(block) {
+  if (block.category) return OVERHEAD_CATS.has(block.category);
+  // legacy blocks with no category: fall back to meeting detection only
+  return block.description && /meeting/i.test(block.description);
+}
+
+function blockDuration(block) {
+  if (!block.start || !block.end) return 0;
+  const [sh, sm] = block.start.split(':').map(Number);
+  const [eh, em] = block.end.split(':').map(Number);
+  const mins = (eh * 60 + em) - (sh * 60 + sm);
+  return mins > 0 ? mins : 0;
+}
+
 function meetingMinutes(day) {
   const plan = day.tasklistData?.plan;
   if (!Array.isArray(plan)) return 0;
-  return plan.reduce((total, block) => {
-    if (!block.description || !/meeting/i.test(block.description)) return total;
-    if (!block.start || !block.end) return total;
-    const [sh, sm] = block.start.split(':').map(Number);
-    const [eh, em] = block.end.split(':').map(Number);
-    const mins = (eh * 60 + em) - (sh * 60 + sm);
-    return total + (mins > 0 ? mins : 0);
-  }, 0);
+  return plan.reduce((total, block) => total + (isMeeting(block) ? blockDuration(block) : 0), 0);
+}
+
+function overheadMinutes(day) {
+  const plan = day.tasklistData?.plan;
+  if (!Array.isArray(plan)) return 0;
+  return plan.reduce((total, block) => total + (isOverhead(block) ? blockDuration(block) : 0), 0);
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -121,7 +141,8 @@ router.get('/weekly', async (_req, res) => {
 
     const data = [...groups.values()].map(({ year, week, days }) => {
       const rates = days.map(d => completionRate(d.plannedCompleted, d.plannedTotal));
-      const totalMeetingMins = sum(days.map(d => meetingMinutes(d)));
+      const totalMeetingMins  = sum(days.map(d => meetingMinutes(d)));
+      const totalOverheadMins = sum(days.map(d => overheadMinutes(d)));
       return {
         label:                `W${week} '${String(year).slice(2)}`,
         days:                 days.length,
@@ -133,7 +154,9 @@ router.get('/weekly', async (_req, res) => {
         incidentCount:        sum(days.map(d => d.incidentCount ?? 0)),
         meetingMinutes:       totalMeetingMins,
         avgDailyMeetingMins:  Math.round(totalMeetingMins / days.length),
-        devCapacityHours:     Math.round((37.5 - totalMeetingMins / 60) * 10) / 10,
+        overheadMinutes:      totalOverheadMins,
+        avgDailyOverheadMins: Math.round(totalOverheadMins / days.length),
+        devCapacityHours:     Math.round((37.5 - totalOverheadMins / 60) * 10) / 10,
       };
     });
     res.json(data);
@@ -158,18 +181,21 @@ router.get('/monthly', async (_req, res) => {
 
     const data = [...groups.values()].map(({ year, month, days }) => {
       const rates = days.map(d => completionRate(d.plannedCompleted, d.plannedTotal));
-      const totalMeetingMins = sum(days.map(d => meetingMinutes(d)));
+      const totalMeetingMins  = sum(days.map(d => meetingMinutes(d)));
+      const totalOverheadMins = sum(days.map(d => overheadMinutes(d)));
       return {
-        label:               `${MONTHS[month]} '${String(year).slice(2)}`,
-        days:                days.length,
-        completionRate:      avg(rates),
-        plannedCompleted:    sum(days.map(d => d.plannedCompleted)),
-        plannedTotal:        sum(days.map(d => d.plannedTotal)),
-        unplannedMinutes:    avg(days.map(d => d.unplannedMinutes)),
-        dayLengthHours:      avgF(days.map(d => toHours(d.dayStart, d.dayEnd))),
-        incidentCount:       sum(days.map(d => d.incidentCount ?? 0)),
-        meetingMinutes:      totalMeetingMins,
-        avgDailyMeetingMins: Math.round(totalMeetingMins / days.length),
+        label:                `${MONTHS[month]} '${String(year).slice(2)}`,
+        days:                 days.length,
+        completionRate:       avg(rates),
+        plannedCompleted:     sum(days.map(d => d.plannedCompleted)),
+        plannedTotal:         sum(days.map(d => d.plannedTotal)),
+        unplannedMinutes:     avg(days.map(d => d.unplannedMinutes)),
+        dayLengthHours:       avgF(days.map(d => toHours(d.dayStart, d.dayEnd))),
+        incidentCount:        sum(days.map(d => d.incidentCount ?? 0)),
+        meetingMinutes:       totalMeetingMins,
+        avgDailyMeetingMins:  Math.round(totalMeetingMins / days.length),
+        overheadMinutes:      totalOverheadMins,
+        avgDailyOverheadMins: Math.round(totalOverheadMins / days.length),
       };
     });
     res.json(data);
