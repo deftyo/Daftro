@@ -19,7 +19,7 @@ function DevCapacity({ data }) {
         <Tooltip
           {...TOOLTIP}
           formatter={(v, _, props) => [
-            `${v} hrs (meetings: ${(props.payload.meetingMinutes / 60).toFixed(1)} hrs)`,
+            `${v} hrs (overhead: ${(props.payload.overheadMinutes / 60).toFixed(1)} hrs, meetings: ${(props.payload.meetingMinutes / 60).toFixed(1)} hrs)`,
             'Dev capacity',
           ]}
         />
@@ -40,10 +40,11 @@ function summarise(data, view) {
 
   const withRate      = data.filter(d => d.completionRate != null);
   const withUnplanned = data.filter(d => d.unplannedMinutes != null);
-  const totalMeetingMins = data.reduce((s, d) => s + (d.meetingMinutes ?? 0), 0);
+  const totalMeetingMins  = data.reduce((s, d) => s + (d.meetingMinutes ?? 0), 0);
+  const totalOverheadMins = data.reduce((s, d) => s + (d.overheadMinutes ?? d.meetingMinutes ?? 0), 0);
 
-  // Avg per snapshot (day/week/month) so the stat box and dev capacity are consistent
-  const avgMeetingMins = data.length ? Math.round(totalMeetingMins / data.length) : 0;
+  const avgMeetingMins  = data.length ? Math.round(totalMeetingMins  / data.length) : 0;
+  const avgOverheadMins = data.length ? Math.round(totalOverheadMins / data.length) : 0;
 
   return {
     totalDays,
@@ -55,9 +56,10 @@ function summarise(data, view) {
       : null,
     totalIncidents: data.reduce((s, d) => s + (d.incidentCount ?? 0), 0),
     avgMeetingMins,
-    // Derived from avgMeetingMins so both stat boxes show consistent numbers
-    avgDevCapacity: view === 'weekly' && avgMeetingMins != null
-      ? Math.round((37.5 - avgMeetingMins / 60) * 10) / 10
+    avgOverheadMins,
+    // Dev capacity subtracts all overhead (meeting + admin + support + other), not just meetings
+    avgDevCapacity: view === 'weekly' && avgOverheadMins != null
+      ? Math.round((37.5 - avgOverheadMins / 60) * 10) / 10
       : null,
   };
 }
@@ -167,7 +169,7 @@ export default function Trends() {
                 <StatBox
                   label="Avg dev capacity / wk"
                   value={`${stats.avgDevCapacity} hrs`}
-                  sub={`37.5h − ${(stats.avgMeetingMins / 60).toFixed(1)}h avg meetings`}
+                  sub={`37.5h − ${(stats.avgOverheadMins / 60).toFixed(1)}h overhead (mtg + admin + support + other)`}
                 />
               )}
             </div>
