@@ -1,7 +1,8 @@
 ﻿'use strict';
 
+const prisma = require('../lib/db');
+
 const { Router }       = require('express');
-const { PrismaClient } = require('@prisma/client');
 const {
   toHours, completionRate, avg, avgF, sum,
   meetingMinutes, overheadMinutes, devMinutes,
@@ -9,7 +10,6 @@ const {
 } = require('../lib/trends');
 
 const router = Router();
-const prisma  = new PrismaClient();
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 

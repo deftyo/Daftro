@@ -1,10 +1,10 @@
 'use strict';
 
+const prisma = require('../lib/db');
+
 const { Router }      = require('express');
-const { PrismaClient } = require('@prisma/client');
 
 const router = Router();
-const prisma  = new PrismaClient();
 
 function pad(n) { return String(n).padStart(2, '0'); }
 

@@ -29,7 +29,11 @@ app.get('*', (_req, res) => res.sendFile(path.join(CLIENT_DIR, 'index.html')));
 
 async function main() {
   await require('./scripts/db-init')();
-  initVapid();
+  if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_EMAIL) {
+    initVapid();
+  } else {
+    console.warn('[push] VAPID env vars not set — web push disabled');
+  }
 
   const TZ = { timezone: 'Europe/London' };
   cron.schedule('52 8 * * 1-5',       () => runMorningJob().catch(console.error), TZ);
