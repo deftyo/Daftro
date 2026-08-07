@@ -252,25 +252,39 @@ const CATEGORIES = [
 ];
 
 function PlanEditor({ blocks, onChange }) {
-  const update = (i, field, val) => onChange(blocks.map((b, idx) => idx === i ? { ...b, [field]: val } : b));
+  // Display sorted by start time; unsorted state preserved so PvA indices stay stable
+  const sorted = blocks
+    .map((b, origIdx) => ({ ...b, origIdx }))
+    .sort((a, b) => {
+      if (!a.start && !b.start) return 0;
+      if (!a.start) return 1;
+      if (!b.start) return -1;
+      return a.start.localeCompare(b.start);
+    });
+
+  const update = (sortedPos, field, val) => {
+    const { origIdx } = sorted[sortedPos];
+    onChange(blocks.map((b, idx) => idx === origIdx ? { ...b, [field]: val } : b));
+  };
+
   return (
     <div className="flex flex-col gap-2">
-      {blocks.map((b, i) => (
-        <div key={i} className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
-          <TimeInput value={b.start} onChange={v => update(i, 'start', v)} />
+      {sorted.map((b, sortedPos) => (
+        <div key={b.origIdx} className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
+          <TimeInput value={b.start} onChange={v => update(sortedPos, 'start', v)} />
           <span className="text-brand-3 text-sm shrink-0">–</span>
-          <TimeInput value={b.end}   onChange={v => update(i, 'end',   v)} />
-          <input value={b.description} onChange={e => update(i, 'description', e.target.value)}
+          <TimeInput value={b.end}   onChange={v => update(sortedPos, 'end',   v)} />
+          <input value={b.description} onChange={e => update(sortedPos, 'description', e.target.value)}
             placeholder="Description" className={`${inputCls} flex-1`} />
-          <select value={b.category ?? ''} onChange={e => update(i, 'category', e.target.value)}
+          <select value={b.category ?? ''} onChange={e => update(sortedPos, 'category', e.target.value)}
             className={`${selCls} text-xs`} title="Category">
             {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
           <label className="flex items-center gap-1.5 text-xs text-brand-3 shrink-0 cursor-pointer select-none">
-            <input type="checkbox" checked={!!b.open} onChange={e => update(i, 'open', e.target.checked)} className="accent-brand-1" />
+            <input type="checkbox" checked={!!b.open} onChange={e => update(sortedPos, 'open', e.target.checked)} className="accent-brand-1" />
             Open
           </label>
-          <RemoveButton onClick={() => onChange(blocks.filter((_, idx) => idx !== i))} />
+          <RemoveButton onClick={() => onChange(blocks.filter((_, idx) => idx !== b.origIdx))} />
         </div>
       ))}
       <AddButton onClick={() => onChange([...blocks, { start: '', end: '', description: '', open: false, category: '' }])} label="Add block" />

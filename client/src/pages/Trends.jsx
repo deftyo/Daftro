@@ -5,6 +5,8 @@ import UnplannedTime     from '../components/charts/UnplannedTime';
 import DayLength         from '../components/charts/DayLength';
 import IncidentFrequency from '../components/charts/IncidentFrequency';
 import MeetingTime       from '../components/charts/MeetingTime';
+import CategoryBreakdown from '../components/charts/CategoryBreakdown';
+import DevTime           from '../components/charts/DevTime';
 import { C, TOOLTIP, AXIS, GRID } from '../components/charts/chartConfig';
 
 // ── Dev capacity chart (weekly only) ─────────────────────────────────────────
@@ -42,9 +44,18 @@ function summarise(data, view) {
   const withUnplanned = data.filter(d => d.unplannedMinutes != null);
   const totalMeetingMins  = data.reduce((s, d) => s + (d.meetingMinutes ?? 0), 0);
   const totalOverheadMins = data.reduce((s, d) => s + (d.overheadMinutes ?? d.meetingMinutes ?? 0), 0);
+  const totalDevMins      = data.reduce((s, d) => s + (d.devMinutes ?? 0), 0);
 
   const avgMeetingMins  = data.length ? Math.round(totalMeetingMins  / data.length) : 0;
   const avgOverheadMins = data.length ? Math.round(totalOverheadMins / data.length) : 0;
+  const avgDevMins      = data.length ? Math.round(totalDevMins      / data.length) : 0;
+  const avgOvertimeHours = data.length
+    ? data.filter(d => d.overtimeHours != null).length > 0
+      ? Math.round(data.filter(d => d.overtimeHours != null)
+          .reduce((s, d) => s + d.overtimeHours, 0) /
+          data.filter(d => d.overtimeHours != null).length * 10) / 10
+      : null
+    : null;
 
   return {
     totalDays,
@@ -57,7 +68,8 @@ function summarise(data, view) {
     totalIncidents: data.reduce((s, d) => s + (d.incidentCount ?? 0), 0),
     avgMeetingMins,
     avgOverheadMins,
-    // Dev capacity subtracts all overhead (meeting + admin + support + other), not just meetings
+    avgDevMins,
+    avgOvertimeHours,
     avgDevCapacity: view === 'weekly' && avgOverheadMins != null
       ? Math.round((37.5 - avgOverheadMins / 60) * 10) / 10
       : null,
@@ -172,6 +184,22 @@ export default function Trends() {
                   sub={`37.5h − ${(stats.avgOverheadMins / 60).toFixed(1)}h overhead (mtg + admin + support + other)`}
                 />
               )}
+              {stats.avgDevMins > 0 && (
+                <StatBox
+                  label={view === 'daily' ? 'Avg dev time / day' : view === 'weekly' ? 'Avg dev time / week' : 'Avg dev time / month'}
+                  value={view === 'daily'
+                    ? `${stats.avgDevMins} min`
+                    : `${(stats.avgDevMins / 60).toFixed(1)} hrs`}
+                  sub="planned development blocks"
+                />
+              )}
+              {stats.avgOvertimeHours != null && stats.avgOvertimeHours > 0 && (
+                <StatBox
+                  label="Avg overtime / day"
+                  value={`${stats.avgOvertimeHours} hrs`}
+                  sub="beyond 7.5 h standard day"
+                />
+              )}
             </div>
 
             <ChartCard
@@ -209,11 +237,25 @@ export default function Trends() {
             {view === 'weekly' && (
               <ChartCard
                 title="Dev capacity"
-                subtitle="37.5 hrs contracted − meeting time = estimated dev hours per week"
+                subtitle="37.5 hrs contracted − overhead (meeting + admin + support + other) = estimated dev hours per week"
               >
                 <DevCapacity data={data} />
               </ChartCard>
             )}
+
+            <ChartCard
+              title="Planned dev time"
+              subtitle={`${view === 'daily' ? 'Minutes' : 'Avg minutes per day'} in development blocks — dashed line at 6 hrs`}
+            >
+              <DevTime data={data} view={view} />
+            </ChartCard>
+
+            <ChartCard
+              title="Time by category"
+              subtitle={`${view === 'daily' ? 'Minutes per category per day' : 'Total minutes per category'} — from categorised plan blocks`}
+            >
+              <CategoryBreakdown data={data} />
+            </ChartCard>
 
             <ChartCard
               title="Incident frequency"

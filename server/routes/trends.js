@@ -1,7 +1,12 @@
-'use strict';
+﻿'use strict';
 
-const { Router }      = require('express');
+const { Router }       = require('express');
 const { PrismaClient } = require('@prisma/client');
+const {
+  toHours, completionRate, avg, avgF, sum,
+  meetingMinutes, overheadMinutes, devMinutes,
+  categoryBreakdown, mergeCategoryBreakdowns, overtimeHours,
+} = require('../lib/trends');
 
 const router = Router();
 const prisma  = new PrismaClient();
@@ -9,34 +14,6 @@ const prisma  = new PrismaClient();
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function toHours(start, end) {
-  if (!start || !end) return null;
-  const [sh, sm] = start.split(':').map(Number);
-  const [eh, em] = end.split(':').map(Number);
-  return Math.round(((eh * 60 + em) - (sh * 60 + sm)) / 6) / 10;
-}
-
-function completionRate(completed, total) {
-  if (completed == null || !total) return null;
-  return Math.round(completed / total * 100);
-}
-
-function avg(arr) {
-  const valid = arr.filter(v => v != null);
-  return valid.length ? Math.round(valid.reduce((s, v) => s + v, 0) / valid.length) : null;
-}
-
-function avgF(arr, dp = 1) {
-  const valid = arr.filter(v => v != null);
-  if (!valid.length) return null;
-  const mean = valid.reduce((s, v) => s + v, 0) / valid.length;
-  return Math.round(mean * 10 ** dp) / 10 ** dp;
-}
-
-function sum(arr) {
-  return arr.filter(v => v != null).reduce((s, v) => s + v, 0);
-}
 
 function isoWeek(date) {
   const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
@@ -66,39 +43,6 @@ async function getCompleteDays() {
   });
 }
 
-const OVERHEAD_CATS = new Set(['meeting', 'admin', 'support', 'other']);
-
-function isMeeting(block) {
-  if (block.category === 'meeting') return true;
-  return block.description && /meeting/i.test(block.description);
-}
-
-function isOverhead(block) {
-  if (block.category) return OVERHEAD_CATS.has(block.category);
-  // legacy blocks with no category: fall back to meeting detection only
-  return block.description && /meeting/i.test(block.description);
-}
-
-function blockDuration(block) {
-  if (!block.start || !block.end) return 0;
-  const [sh, sm] = block.start.split(':').map(Number);
-  const [eh, em] = block.end.split(':').map(Number);
-  const mins = (eh * 60 + em) - (sh * 60 + sm);
-  return mins > 0 ? mins : 0;
-}
-
-function meetingMinutes(day) {
-  const plan = day.tasklistData?.plan;
-  if (!Array.isArray(plan)) return 0;
-  return plan.reduce((total, block) => total + (isMeeting(block) ? blockDuration(block) : 0), 0);
-}
-
-function overheadMinutes(day) {
-  const plan = day.tasklistData?.plan;
-  if (!Array.isArray(plan)) return 0;
-  return plan.reduce((total, block) => total + (isOverhead(block) ? blockDuration(block) : 0), 0);
-}
-
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 router.get('/daily', async (_req, res) => {
@@ -107,17 +51,21 @@ router.get('/daily', async (_req, res) => {
     const data = days.map(d => {
       const pd = d.parsedDate;
       return {
-        label:            pd ? `${pd.getUTCDate()} ${MONTHS[pd.getUTCMonth()]}` : d.date,
-        date:             d.date,
-        completionRate:   completionRate(d.plannedCompleted, d.plannedTotal),
-        plannedCompleted: d.plannedCompleted,
-        plannedTotal:     d.plannedTotal,
-        unplannedMinutes: d.unplannedMinutes,
-        dayLengthHours:   toHours(d.dayStart, d.dayEnd),
-        dayStart:         d.dayStart,
-        dayEnd:           d.dayEnd,
-        incidentCount:    d.incidentCount ?? 0,
-        meetingMinutes:   meetingMinutes(d),
+        label:             pd ? `${pd.getUTCDate()} ${MONTHS[pd.getUTCMonth()]}` : d.date,
+        date:              d.date,
+        completionRate:    completionRate(d.plannedCompleted, d.plannedTotal),
+        plannedCompleted:  d.plannedCompleted,
+        plannedTotal:      d.plannedTotal,
+        unplannedMinutes:  d.unplannedMinutes,
+        dayLengthHours:    toHours(d.dayStart, d.dayEnd),
+        dayStart:          d.dayStart,
+        dayEnd:            d.dayEnd,
+        incidentCount:     d.incidentCount ?? 0,
+        meetingMinutes:    meetingMinutes(d),
+        overheadMinutes:   overheadMinutes(d),
+        devMinutes:        devMinutes(d),
+        overtimeHours:     overtimeHours(d),
+        categoryBreakdown: categoryBreakdown(d),
       };
     });
     res.json(data);
@@ -140,9 +88,11 @@ router.get('/weekly', async (_req, res) => {
     }
 
     const data = [...groups.values()].map(({ year, week, days }) => {
-      const rates = days.map(d => completionRate(d.plannedCompleted, d.plannedTotal));
-      const totalMeetingMins  = sum(days.map(d => meetingMinutes(d)));
-      const totalOverheadMins = sum(days.map(d => overheadMinutes(d)));
+      const rates            = days.map(d => completionRate(d.plannedCompleted, d.plannedTotal));
+      const totalMeetingMins = sum(days.map(d => meetingMinutes(d)));
+      const totalOverheadMins= sum(days.map(d => overheadMinutes(d)));
+      const totalDevMins     = sum(days.map(d => devMinutes(d)));
+      const totalOvertimeHrs = avgF(days.map(d => overtimeHours(d)));
       return {
         label:                `W${week} '${String(year).slice(2)}`,
         days:                 days.length,
@@ -156,7 +106,11 @@ router.get('/weekly', async (_req, res) => {
         avgDailyMeetingMins:  Math.round(totalMeetingMins / days.length),
         overheadMinutes:      totalOverheadMins,
         avgDailyOverheadMins: Math.round(totalOverheadMins / days.length),
+        devMinutes:           totalDevMins,
+        avgDailyDevMins:      Math.round(totalDevMins / days.length),
+        avgOvertimeHours:     totalOvertimeHrs,
         devCapacityHours:     Math.round((37.5 - totalOverheadMins / 60) * 10) / 10,
+        categoryBreakdown:    mergeCategoryBreakdowns(days.map(d => categoryBreakdown(d))),
       };
     });
     res.json(data);
@@ -174,15 +128,16 @@ router.get('/monthly', async (_req, res) => {
     for (const d of days) {
       const year  = d.parsedDate.getUTCFullYear();
       const month = d.parsedDate.getUTCMonth();
-      const key   = `${year}-${String(month + 1).padStart(2, '0')}`;
+      const key   = `${year}-${String(month + 1).padStart(2, '00')}`;
       if (!groups.has(key)) groups.set(key, { key, year, month, days: [] });
       groups.get(key).days.push(d);
     }
 
     const data = [...groups.values()].map(({ year, month, days }) => {
-      const rates = days.map(d => completionRate(d.plannedCompleted, d.plannedTotal));
-      const totalMeetingMins  = sum(days.map(d => meetingMinutes(d)));
-      const totalOverheadMins = sum(days.map(d => overheadMinutes(d)));
+      const rates            = days.map(d => completionRate(d.plannedCompleted, d.plannedTotal));
+      const totalMeetingMins = sum(days.map(d => meetingMinutes(d)));
+      const totalOverheadMins= sum(days.map(d => overheadMinutes(d)));
+      const totalDevMins     = sum(days.map(d => devMinutes(d)));
       return {
         label:                `${MONTHS[month]} '${String(year).slice(2)}`,
         days:                 days.length,
@@ -196,6 +151,10 @@ router.get('/monthly', async (_req, res) => {
         avgDailyMeetingMins:  Math.round(totalMeetingMins / days.length),
         overheadMinutes:      totalOverheadMins,
         avgDailyOverheadMins: Math.round(totalOverheadMins / days.length),
+        devMinutes:           totalDevMins,
+        avgDailyDevMins:      Math.round(totalDevMins / days.length),
+        avgOvertimeHours:     avgF(days.map(d => overtimeHours(d))),
+        categoryBreakdown:    mergeCategoryBreakdowns(days.map(d => categoryBreakdown(d))),
       };
     });
     res.json(data);
