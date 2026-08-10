@@ -1,6 +1,7 @@
 'use strict';
 
 const prisma = require('./lib/db');
+const { mergeGaps } = require('./parsers/index');
 
 
 
@@ -26,7 +27,7 @@ async function upsertDay(dateStr, { tasklist = null, report = null, isComplete =
   const fields = {
     parsedDate,
     isComplete,
-    hasGap:           false,
+    hasGap:           mergeGaps(tasklist, report).length > 0,
     tasklistMissing:  false,
     reportMissing:    false,
     dayStart:         m.dayStart         ?? null,
@@ -60,7 +61,7 @@ function _rowToDay(row) {
     date:          row.date,
     parsedDate:    row.parsedDate,
     isComplete:    row.isComplete,
-    gaps:          row.hasGap ? ['gap'] : [],
+    gaps:          mergeGaps(row.tasklistData, row.reportData),
     tasklistError: row.tasklistMissing ? 'missing' : null,
     reportError:   row.reportMissing   ? 'missing' : null,
     tasklist:      row.tasklistData,
