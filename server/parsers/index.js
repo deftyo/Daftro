@@ -47,10 +47,14 @@ function buildDay(dateStr, tasklistPath, reportPath) {
     }
   }
 
-  if (day.tasklist) day.gaps.push(...(day.tasklist.gaps || []));
-  if (day.report)   day.gaps.push(...(day.report.gaps   || []));
+  day.gaps.push(...mergeGaps(day.tasklist, day.report));
 
   return day;
+}
+
+// Merges gap objects from a parsed tasklist and/or report into one array.
+function mergeGaps(tasklist, report) {
+  return [...(tasklist?.gaps || []), ...(report?.gaps || [])];
 }
 
 // Scans directories for paired Tasklist/Report files and returns sorted day objects.
@@ -82,4 +86,4 @@ function scanDirectory(tasklistsDir, reportsDir = tasklistsDir) {
   return days;
 }
 
-module.exports = { scanDirectory, buildDay, parseDate };
+module.exports = { scanDirectory, buildDay, parseDate, mergeGaps };
