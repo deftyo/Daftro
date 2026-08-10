@@ -1,9 +1,9 @@
 'use strict';
 
-const webpush = require('web-push');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('./db');
 
-const prisma = new PrismaClient();
+const webpush = require('web-push');
+
 
 function initVapid() {
   webpush.setVapidDetails(

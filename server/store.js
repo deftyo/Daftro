@@ -1,8 +1,8 @@
 'use strict';
 
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('./lib/db');
 
-const prisma = new PrismaClient();
+
 
 async function getAll() {
   const rows = await prisma.day.findMany({ orderBy: { parsedDate: 'desc' } });
@@ -21,7 +21,7 @@ async function upsertDay(dateStr, { tasklist = null, report = null, isComplete =
   let parsedDate = null;
   if (parts.length === 3) {
     const [month, day, year] = parts;
-    parsedDate = new Date(year, month - 1, day);
+    parsedDate = new Date(Date.UTC(year, month - 1, day));
   }
   const fields = {
     parsedDate,
