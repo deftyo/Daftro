@@ -7,6 +7,7 @@ const {
   toHours, completionRate, avg, avgF, sum,
   meetingMinutes, overheadMinutes, devMinutes,
   categoryBreakdown, mergeCategoryBreakdowns, overtimeHours,
+  computeCompleteness,
 } = require('../lib/trends');
 
 const router = Router();
@@ -44,6 +45,19 @@ async function getCompleteDays() {
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
+
+router.get('/completeness', async (_req, res) => {
+  try {
+    const days = await prisma.day.findMany({
+      where:  { parsedDate: { not: null } },
+      select: { parsedDate: true, isComplete: true },
+    });
+    res.json(computeCompleteness(days));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 router.get('/daily', async (_req, res) => {
   try {

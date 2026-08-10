@@ -7,6 +7,7 @@ import IncidentFrequency from '../components/charts/IncidentFrequency';
 import MeetingTime       from '../components/charts/MeetingTime';
 import CategoryBreakdown from '../components/charts/CategoryBreakdown';
 import DevTime           from '../components/charts/DevTime';
+import CompletenessPanel from '../components/CompletenessPanel';
 import { C, TOOLTIP, AXIS, GRID } from '../components/charts/chartConfig';
 
 // ── Dev capacity chart (weekly only) ─────────────────────────────────────────
@@ -144,6 +145,8 @@ export default function Trends() {
         <h1 className="text-2xl font-bold text-gray-900">Trends</h1>
         <ViewToggle view={view} onChange={setView} />
       </div>
+
+      <CompletenessPanel />
 
       {error && <p className="text-red-600 mb-4">Failed to load: {error}</p>}
 

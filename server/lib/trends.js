@@ -102,6 +102,102 @@ function sum(arr) {
   return arr.filter(v => v != null).reduce((s, v) => s + v, 0);
 }
 
+// ── Data completeness ──────────────────────────────────────────────────────────
+
+const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function isWeekday(date) {
+  const d = date.getUTCDay();
+  return d !== 0 && d !== 6;
+}
+
+function utcDateOnly(date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function dateKey(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function dateLabel(date) {
+  return `${date.getUTCDate()} ${SHORT_MONTHS[date.getUTCMonth()]}`;
+}
+
+// Inclusive list of weekday dates between start and end (both UTC, date-only).
+function listWeekdays(start, end) {
+  const days = [];
+  const cursor = utcDateOnly(start);
+  const last = utcDateOnly(end);
+  while (cursor <= last) {
+    if (isWeekday(cursor)) days.push(new Date(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return days;
+}
+
+// Most recent weekday strictly before `today` (today's entry may still be in progress).
+function lastCompletedWeekday(today) {
+  const cursor = utcDateOnly(today);
+  cursor.setUTCDate(cursor.getUTCDate() - 1);
+  while (!isWeekday(cursor)) cursor.setUTCDate(cursor.getUTCDate() - 1);
+  return cursor;
+}
+
+// days: [{ parsedDate, isComplete }] — ALL known days, not pre-filtered to complete.
+function computeCompleteness(days, { today = new Date() } = {}) {
+  const withDates = days.filter(d => d.parsedDate);
+
+  const empty = {
+    rangeStart: null,
+    rangeEnd:   null,
+    expectedWeekdays: 0,
+    complete:   0,
+    incomplete: 0,
+    missing:    0,
+    completenessPercent: null,
+    missingDates:    [],
+    incompleteDates: [],
+  };
+  if (!withDates.length) return empty;
+
+  const rangeStartDate = withDates.reduce(
+    (min, d) => (d.parsedDate < min ? d.parsedDate : min), withDates[0].parsedDate);
+  const rangeEndDate = lastCompletedWeekday(today);
+  if (utcDateOnly(rangeStartDate) > rangeEndDate) return empty;
+
+  const byKey = new Map();
+  for (const d of withDates) byKey.set(dateKey(utcDateOnly(d.parsedDate)), d.isComplete);
+
+  const expected = listWeekdays(rangeStartDate, rangeEndDate);
+  let complete = 0, incomplete = 0, missing = 0;
+  const missingDates = [], incompleteDates = [];
+
+  for (const d of expected) {
+    const key = dateKey(d);
+    if (!byKey.has(key)) {
+      missing++;
+      missingDates.push({ date: key, label: dateLabel(d) });
+    } else if (byKey.get(key)) {
+      complete++;
+    } else {
+      incomplete++;
+      incompleteDates.push({ date: key, label: dateLabel(d) });
+    }
+  }
+
+  return {
+    rangeStart: dateKey(utcDateOnly(rangeStartDate)),
+    rangeEnd:   dateKey(rangeEndDate),
+    expectedWeekdays: expected.length,
+    complete,
+    incomplete,
+    missing,
+    completenessPercent: expected.length ? Math.round((complete / expected.length) * 100) : null,
+    missingDates:    missingDates.reverse(),
+    incompleteDates: incompleteDates.reverse(),
+  };
+}
+
 module.exports = {
   OVERHEAD_CATS,
   blockDuration,
@@ -119,4 +215,7 @@ module.exports = {
   avg,
   avgF,
   sum,
+  isWeekday,
+  listWeekdays,
+  computeCompleteness,
 };
