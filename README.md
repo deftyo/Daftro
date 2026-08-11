@@ -5,7 +5,7 @@ Self-hosted daily retrospective dashboard. Plan your day, log actuals, and revie
 ## What it does
 
 - **Reports view** — per-day plan-vs-actual, unplanned work table, incident/gap flags
-- **Trends dashboard** — completion rate, unplanned time, day length, incident frequency, meeting time, and dev capacity charted over time with daily/weekly/monthly toggle
+- **Trends dashboard** — completion rate, unplanned time, day length, incident frequency, meeting time, and dev capacity charted over time with daily/weekly/monthly toggle, plus a data-completeness panel showing what fraction of expected weekdays are actually represented
 - **Day editor** — create and edit days directly in the UI; no text files required
 - **Live file watching** — drop a tasklist or report file and the app picks it up automatically (polling-based for WSL↔Windows reliability)
 - **REST API** — structured JSON API for programmatic writes (see [Automation](#automation))
@@ -81,15 +81,25 @@ On first load, the browser prompts for notification permission. Once granted, th
 
 ```bash
 cd server
-npm test              # full Jest suite (77 tests)
+npm test              # full Jest suite (139 tests)
 npm run test:watch    # watch mode
 ```
 
-To run the full stack locally:
+To run the full stack locally, Postgres still needs to be reachable and `DATABASE_URL` exported — the server does not load a `.env` file itself, so export the variables in the shell you run it from. `docker-compose.yml` doesn't publish Postgres to the host by default, so add a port mapping to reach it from a locally-run backend:
+
+```yaml
+# docker-compose.yml — add under services.postgres
+ports:
+  - "5432:5432"
+```
 
 ```bash
+docker compose up -d postgres
+
 # Terminal 1 — backend
-cd server && node index.js
+cd server
+export DATABASE_URL=postgresql://daftro:daftro@localhost:5432/daftro
+node index.js
 
 # Terminal 2 — frontend dev server
 cd client && npm install && npm run dev
@@ -203,6 +213,7 @@ All dates use `M-D-YYYY` format (no leading zeros, e.g. `7-21-2026`).
 | `GET`  | `/api/trends/daily` | Per-day metrics from DB |
 | `GET`  | `/api/trends/weekly` | Week-aggregated metrics (includes `meetingMinutes`, `devCapacityHours`) |
 | `GET`  | `/api/trends/monthly` | Month-aggregated metrics |
+| `GET`  | `/api/trends/completeness` | Coverage stats — expected vs. logged weekdays, with missing/incomplete date lists |
 | `GET`  | `/api/calendar/feed.ics` | iCal feed — subscribe in any calendar app (see [Calendar setup](docs/calendar-setup.md)) |
 | `GET`  | `/api/push/vapid-public-key` | Returns the VAPID public key for client subscription |
 | `POST` | `/api/push/subscribe` | Register or update a push subscription |
@@ -215,7 +226,7 @@ All dates use `M-D-YYYY` format (no leading zeros, e.g. `7-21-2026`).
 | Backend | Node.js + Express, chokidar file watcher, Postgres + Prisma |
 | Frontend | React + Vite + Tailwind CSS + Recharts |
 | Container | Docker + Docker Compose |
-| Tests | Jest (77 tests, parsers only) |
+| Tests | Jest (139 tests — parsers, trends math, store, and API routes) |
 
 ## Project status
 
@@ -233,3 +244,4 @@ All dates use `M-D-YYYY` format (no leading zeros, e.g. `7-21-2026`).
 - [x] Phase 12 — Inline day editor (merged DayDetail + DayEditor into a single DayPage with collapsible Morning Plan and EOD Review sections; plan-vs-actual annotation inline)
 - [x] Phase 13 — Web Push notifications (VAPID-based browser push; service worker + `usePushSubscription` hook; evening job sends reminder if day not marked complete; 410 cleanup on stale subscriptions)
 - [x] Phase 14 — Meeting time + dev capacity (detect meeting blocks from plan descriptions; daily/weekly/monthly meeting time charts; weekly dev capacity = 37.5h − meeting hours; removed carry-forward tracking)
+- [x] Phase 15 — Data completeness (coverage panel on the Trends page; classifies each expected weekday since the first logged day as complete, incomplete, or missing entirely, so trend charts — which only ever plot complete days — carry visible confidence about how much of the record they represent)

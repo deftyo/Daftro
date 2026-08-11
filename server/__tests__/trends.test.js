@@ -15,6 +15,9 @@ const {
   avg,
   avgF,
   sum,
+  isWeekday,
+  listWeekdays,
+  computeCompleteness,
 } = require('../lib/trends');
 
 // ── blockDuration ────────────────────────────────────────────────────────────
@@ -314,5 +317,120 @@ describe('sum', () => {
 
   test('returns 0 for empty array', () => {
     expect(sum([])).toBe(0);
+  });
+});
+
+// ── isWeekday / listWeekdays ─────────────────────────────────────────────────
+
+describe('isWeekday', () => {
+  test('Mon–Fri are weekdays', () => {
+    // 2026-01-05 is a Monday
+    for (let d = 5; d <= 9; d++) {
+      expect(isWeekday(new Date(Date.UTC(2026, 0, d)))).toBe(true);
+    }
+  });
+
+  test('Sat/Sun are not weekdays', () => {
+    expect(isWeekday(new Date(Date.UTC(2026, 0, 10)))).toBe(false); // Sat
+    expect(isWeekday(new Date(Date.UTC(2026, 0, 11)))).toBe(false); // Sun
+  });
+});
+
+describe('listWeekdays', () => {
+  test('returns only weekdays in an inclusive range spanning a weekend', () => {
+    const days = listWeekdays(
+      new Date(Date.UTC(2026, 0, 5)),   // Mon
+      new Date(Date.UTC(2026, 0, 12)),  // next Mon
+    );
+    expect(days).toHaveLength(6); // Mon-Fri + following Mon
+    expect(days[0].getUTCDate()).toBe(5);
+    expect(days[days.length - 1].getUTCDate()).toBe(12);
+  });
+
+  test('returns empty array when start is after end', () => {
+    const days = listWeekdays(new Date(Date.UTC(2026, 0, 12)), new Date(Date.UTC(2026, 0, 5)));
+    expect(days).toEqual([]);
+  });
+});
+
+// ── computeCompleteness ──────────────────────────────────────────────────────
+
+describe('computeCompleteness', () => {
+  test('returns all-null/zero result for no days', () => {
+    const result = computeCompleteness([]);
+    expect(result).toEqual({
+      rangeStart: null,
+      rangeEnd:   null,
+      expectedWeekdays: 0,
+      complete:   0,
+      incomplete: 0,
+      missing:    0,
+      completenessPercent: null,
+      missingDates:    [],
+      incompleteDates: [],
+    });
+  });
+
+  test('mixes complete, incomplete, and missing days correctly', () => {
+    // Expected weekdays: Jan 5,6,7,8,9,12 2026 (Mon-Fri, then next Mon; weekend skipped)
+    const days = [
+      { parsedDate: new Date(Date.UTC(2026, 0, 5)),  isComplete: true },  // complete
+      { parsedDate: new Date(Date.UTC(2026, 0, 6)),  isComplete: true },  // complete
+      // Jan 7 — no row → missing
+      { parsedDate: new Date(Date.UTC(2026, 0, 8)),  isComplete: false }, // incomplete
+      { parsedDate: new Date(Date.UTC(2026, 0, 9)),  isComplete: true },  // complete
+      // Jan 12 — no row → missing
+    ];
+    const today = new Date(Date.UTC(2026, 0, 13)); // Tuesday — last completed weekday is Mon Jan 12
+
+    const result = computeCompleteness(days, { today });
+
+    expect(result.rangeStart).toBe('2026-01-05');
+    expect(result.rangeEnd).toBe('2026-01-12');
+    expect(result.expectedWeekdays).toBe(6);
+    expect(result.complete).toBe(3);
+    expect(result.incomplete).toBe(1);
+    expect(result.missing).toBe(2);
+    expect(result.completenessPercent).toBe(50);
+    expect(result.incompleteDates).toEqual([{ date: '2026-01-08', label: '8 Jan' }]);
+    expect(result.missingDates).toEqual([
+      { date: '2026-01-12', label: '12 Jan' },
+      { date: '2026-01-07', label: '7 Jan' },
+    ]);
+  });
+
+  test('returns 100% coverage with no missing/incomplete dates when every weekday is complete', () => {
+    const days = [
+      { parsedDate: new Date(Date.UTC(2026, 0, 5)), isComplete: true },
+      { parsedDate: new Date(Date.UTC(2026, 0, 6)), isComplete: true },
+    ];
+    const today = new Date(Date.UTC(2026, 0, 7)); // Wed — last completed weekday is Tue Jan 6
+
+    const result = computeCompleteness(days, { today });
+    expect(result.expectedWeekdays).toBe(2);
+    expect(result.complete).toBe(2);
+    expect(result.completenessPercent).toBe(100);
+    expect(result.missingDates).toEqual([]);
+    expect(result.incompleteDates).toEqual([]);
+  });
+
+  test('excludes today from the range even when it has a row', () => {
+    const days = [{ parsedDate: new Date(Date.UTC(2026, 0, 8)), isComplete: true }]; // Thu
+    const today = new Date(Date.UTC(2026, 0, 8, 9)); // same Thursday
+
+    const result = computeCompleteness(days, { today });
+    expect(result.expectedWeekdays).toBe(0);
+    expect(result.completenessPercent).toBeNull();
+  });
+
+  test('ignores days with no parsedDate', () => {
+    const days = [
+      { parsedDate: null, isComplete: false },
+      { parsedDate: new Date(Date.UTC(2026, 0, 5)), isComplete: true },
+    ];
+    const today = new Date(Date.UTC(2026, 0, 6));
+    const result = computeCompleteness(days, { today });
+    expect(result.expectedWeekdays).toBe(1);
+    expect(result.complete).toBe(1);
   });
 });
