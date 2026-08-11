@@ -85,11 +85,21 @@ npm test              # full Jest suite (139 tests)
 npm run test:watch    # watch mode
 ```
 
-To run the full stack locally:
+To run the full stack locally, Postgres still needs to be reachable and `DATABASE_URL` exported — the server does not load a `.env` file itself, so export the variables in the shell you run it from. `docker-compose.yml` doesn't publish Postgres to the host by default, so add a port mapping to reach it from a locally-run backend:
+
+```yaml
+# docker-compose.yml — add under services.postgres
+ports:
+  - "5432:5432"
+```
 
 ```bash
+docker compose up -d postgres
+
 # Terminal 1 — backend
-cd server && node index.js
+cd server
+export DATABASE_URL=postgresql://daftro:daftro@localhost:5432/daftro
+node index.js
 
 # Terminal 2 — frontend dev server
 cd client && npm install && npm run dev
